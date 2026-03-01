@@ -1,0 +1,156 @@
+.popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+  z-index: 20;
+  animation: calendarFadeIn var(--transition-fast) ease;
+}
+
+.calendar {
+  padding: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.monthLabel {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-primary-text);
+}
+
+.navButton {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-input-background);
+  color: var(--color-primary-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.navButton:hover {
+  border-color: rgba(72, 29, 82, 0.5);
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  padding: 4px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day {
+  border: 0;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.day:hover {
+  background: var(--color-surface-alt);
+}
+
+.outsideMonth {
+  color: var(--color-muted);
+  opacity: 0.55;
+}
+
+.today {
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+.selected {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.selected:hover {
+  background: var(--color-primary);
+}
+
+.inRange {
+  background: var(--color-selected);
+}
+
+.highlighted::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--color-secondary);
+}
+
+.calendarButton {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-input-background);
+  color: var(--color-primary-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.calendarButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes calendarFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .popup {
+    width: 260px;
+  }
+}

@@ -1,0 +1,246 @@
+.row {
+  display: flex;
+  flex-direction: column;
+  max-width: 78%;
+}
+
+.humanRow {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.aiRow {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.bubble {
+  padding: 10px 12px;
+  border-radius: 8px;
+  line-height: 1.45;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.roleLabel {
+  margin: 0 2px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.executionLink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.executionLink:hover {
+  opacity: 0.85;
+}
+
+.humanBubble {
+  background: var(--color-human-bubble);
+  border-bottom-left-radius: 2px;
+}
+
+.aiBubble {
+  background: var(--color-ai-bubble);
+  color: var(--color-ai-bubble-text);
+  border-bottom-right-radius: 2px;
+}
+
+.toolBubble {
+  margin-top: 6px;
+  background: var(--color-tool-background);
+  border: 1px solid var(--color-tool-border);
+  color: var(--color-tool-text);
+  font-size: 0.82rem;
+}
+
+.toolBubbleError {
+  background: var(--color-tool-error-background);
+  border: 1px solid var(--color-tool-error-border);
+  color: var(--color-tool-error-text);
+}
+
+.toolSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.toolName {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: inherit;
+}
+
+.toolBadge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.toolBadgeSuccess {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #166534;
+}
+
+.toolBadgeError {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #991b1b;
+}
+
+:global(html[data-theme="dark"]) .toolBadgeSuccess {
+  background: #d1fae5;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+:global(html[data-theme="dark"]) .toolBadgeError {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #7f1d1d;
+}
+
+.toolToggle {
+  margin-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-input-background);
+  color: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+
+.toolToggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--transition-fast) ease;
+}
+
+.chevronExpanded {
+  transform: rotate(180deg);
+}
+
+.toolList {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.toolLine {
+  margin: 0 0 8px;
+  color: var(--color-tool-text);
+}
+
+.toolLine:last-child {
+  margin-bottom: 0;
+}
+
+.toolBubbleError .toolLine {
+  color: var(--color-tool-error-text);
+}
+
+.toolCode {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+}
+
+.timestamp {
+  margin: 4px 2px 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.mediaList {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collapsibleTextWrap {
+  margin-bottom: 2px;
+}
+
+.contentToggle {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-input-background);
+  color: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+
+.contentToggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--transition-fast) ease;
+}
+
+.collapsibleText {
+  margin-top: 8px;
+}
+
+.mediaImage,
+.mediaVideo {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.mediaAudio {
+  width: 100%;
+  max-width: 320px;
+}
+
+.mediaLink {
+  display: inline-flex;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .bubble {
+    font-size: 0.84rem;
+  }
+
+  .toolBubble,
+  .toolName {
+    font-size: 0.78rem;
+  }
+
+  .mediaImage,
+  .mediaVideo,
+  .mediaAudio {
+    max-width: 260px;
+  }
+}

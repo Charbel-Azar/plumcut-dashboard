@@ -1,0 +1,53 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.deltaChip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.deltaWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.deltaPositive {
+  background: rgba(21, 128, 61, 0.12);
+  color: #166534;
+}
+
+.deltaNegative {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+
+.deltaPeriod {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  margin-left: 6px;
+}
+
+@media (max-width: 1320px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 500px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,882 @@
+{
+    "name": "TIA Dashboard Backend API",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "dashboard/users",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "37c7d9c4-c992-43f8-b3e7-213a08dddf01",
+            "name": "Webhook Users",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                272
+            ],
+            "webhookId": "c2d671e0-b482-4aeb-a9c3-0cfcf3a55bdf"
+        },
+        {
+            "parameters": {
+                "collection": "users",
+                "options": {
+                    "projection": "={\"_id\":1,\"user_id\":1,\"username\":1,\"name\":1,\"active_image_url\":1,\"active_image_id\":1,\"image_activated_at\":1}"
+                },
+                "query": "={}"
+            },
+            "id": "f883a2b3-1af7-45e1-b2e8-093c0a2072f9",
+            "name": "Mongo Users",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                224,
+                272
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'object' && typeof value.toString === 'function') return value.toString();\n  return String(value);\n};\n\nconst toIsoSafe = (value) => {\n  if (!value) return null;\n  if (typeof value === 'string') return value;\n  if (value instanceof Date) return value.toISOString();\n  if (typeof value.toISOString === 'function') return value.toISOString();\n  return String(value);\n};\n\nconst items = $input.all();\nreturn items.map((item) => ({\n  json: {\n    _id: toStringSafe(item.json._id),\n    user_id: item.json.user_id || '',\n    active_image_url: item.json.active_image_url || '',\n    image_activated_at: toIsoSafe(item.json.image_activated_at),\n    username: toStringSafe(item.json.username || item.json.name || '').trim(),\n  },\n}));"
+            },
+            "id": "6d10eb14-b608-4bb1-99e6-6b39775f6be7",
+            "name": "Format Users",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                448,
+                272
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "allIncomingItems",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "GET, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "d48b5d20-db2a-4476-8c68-124032b8ce25",
+            "name": "Respond Users",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                672,
+                272
+            ]
+        },
+        {
+            "parameters": {
+                "path": "dashboard/chats",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "fe824805-30df-407b-8c99-574bdafd734c",
+            "name": "Webhook Chats",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                496
+            ],
+            "webhookId": "f17e690f-e991-4b0c-9b10-24a9535a7ad8"
+        },
+        {
+            "parameters": {
+                "jsCode": "const userId = $input.first().json.query?.userId || '';\nconst mongoQuery = userId ? { sessionId: userId } : {};\n\nreturn [\n  {\n    json: {\n      requestedUserId: userId || null,\n      mongoQueryString: JSON.stringify(mongoQuery),\n    },\n  },\n];"
+            },
+            "id": "521f2888-d588-4cb1-9d1f-dce9c4dd4078",
+            "name": "Build Chats Query",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                224,
+                496
+            ]
+        },
+        {
+            "parameters": {
+                "collection": "chats",
+                "options": {},
+                "query": "={{$json.mongoQueryString}}"
+            },
+            "id": "a918f882-ced3-4566-8720-5d13844ffa9a",
+            "name": "Mongo Chats",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                496
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'number' || typeof value === 'boolean') return String(value);\n  try {\n    return JSON.stringify(value);\n  } catch {\n    return String(value);\n  }\n};\n\nconst pad2 = (value) => String(value).padStart(2, '0');\n\nconst parseDate = (raw) => {\n  if (!raw || typeof raw !== 'string') return null;\n\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(raw)) {\n    return raw.slice(0, 10);\n  }\n\n  const parts = raw.split('/').map((part) => Number(part.trim()));\n  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {\n    return null;\n  }\n\n  const [day, month, yearRaw] = parts;\n  const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;\n  return `${year}-${pad2(month)}-${pad2(day)}`;\n};\n\nconst parseTime = (raw) => {\n  if (!raw || typeof raw !== 'string') return null;\n\n  const parts = raw.split(':').map((part) => Number(part.trim()));\n  if (parts.length < 2 || parts.length > 3 || parts.some((part) => Number.isNaN(part))) {\n    return null;\n  }\n\n  const [hour, minute, second = 0] = parts;\n  if (\n    hour < 0 ||\n    hour > 23 ||\n    minute < 0 ||\n    minute > 59 ||\n    second < 0 ||\n    second > 59\n  ) {\n    return null;\n  }\n\n  return `${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;\n};\n\nconst buildDatetime = (message) => {\n  if (message?.datetime && typeof message.datetime === 'string') {\n    const rawDatetime = message.datetime.trim();\n    if (!Number.isNaN(new Date(rawDatetime).getTime())) {\n      return rawDatetime;\n    }\n  }\n\n  const metadata = message?.data?.response_metadata || {};\n  const isHuman = message?.type === 'human';\n  const dateRaw =\n    (isHuman ? metadata.human_date : metadata.ai_date) || metadata.date || metadata.message_date;\n  const timeRaw =\n    (isHuman ? metadata.human_time : metadata.ai_time) || metadata.time || metadata.message_time;\n\n  const isoDate = parseDate(dateRaw);\n  const isoTime = parseTime(timeRaw);\n  if (!isoDate || !isoTime) {\n    return null;\n  }\n\n  return `${isoDate}T${isoTime}`;\n};\n\nconst getStrictHumanTurnContext = (message) => {\n  const executionId = toStringSafe(\n    message?.execution_id || message?.data?.response_metadata?.executionID\n  ).trim();\n\n  const metadata = message?.data?.response_metadata || {};\n  const isoDate = parseDate(metadata.human_date);\n  const isoTime = parseTime(metadata.human_time);\n\n  if (!executionId || !isoDate || !isoTime) {\n    return null;\n  }\n\n  return {\n    executionId,\n    datetime: `${isoDate}T${isoTime}`,\n  };\n};\n\nconst normalizeToolCall = (toolCall) => {\n  if (!toolCall || typeof toolCall !== 'object') {\n    return null;\n  }\n\n  const id = toStringSafe(toolCall.id || toolCall?.args?.id).trim();\n  const name = toStringSafe(toolCall.name).trim();\n  const args =\n    toolCall.args && typeof toolCall.args === 'object' && !Array.isArray(toolCall.args)\n      ? toolCall.args\n      : {};\n\n  if (!id && !name) {\n    return null;\n  }\n\n  return {\n    id,\n    name,\n    args,\n  };\n};\n\nconst extractToolCalls = (message) => {\n  const candidates = [\n    message?.data?.tool_calls,\n    message?.tool_calls,\n    message?.data?.additional_kwargs?.tool_calls,\n    message?.additional_kwargs?.tool_calls,\n  ];\n\n  const rawToolCalls =\n    candidates.find((candidate) => Array.isArray(candidate) && candidate.length) || [];\n\n  return rawToolCalls\n    .map((toolCall) => normalizeToolCall(toolCall))\n    .filter((toolCall) => Boolean(toolCall));\n};\n\nconst normalizeToolResponse = (message) => ({\n  tool_call_id: toStringSafe(message?.data?.tool_call_id || message?.tool_call_id).trim(),\n  name: toStringSafe(message?.data?.name || message?.name).trim(),\n  content: toStringSafe(message?.data?.content || message?.content),\n});\n\nconst parseJsonIfPossible = (content) => {\n  const text = toStringSafe(content).trim();\n  if (!text.startsWith('{') && !text.startsWith('[')) {\n    return null;\n  }\n\n  try {\n    return JSON.parse(text);\n  } catch {\n    return null;\n  }\n};\n\nconst hasErrorSignalInText = (text) =>\n  /there was an error|workflow did not return a response|invalid url|failed|exception|technical issue/i.test(\n    text\n  );\n\nconst hasErrorSignalInParsedValue = (value) => {\n  if (Array.isArray(value)) {\n    return value.some((item) => hasErrorSignalInParsedValue(item));\n  }\n\n  if (!value || typeof value !== 'object') {\n    return false;\n  }\n\n  const status = typeof value.status === 'string' ? value.status.toLowerCase() : '';\n  if (status === 'error' || status === 'failed') {\n    return true;\n  }\n\n  if (value.error_code !== null && value.error_code !== undefined && value.error_code !== '') {\n    return true;\n  }\n\n  if (typeof value.error_message === 'string' && value.error_message.trim()) {\n    return true;\n  }\n\n  if (typeof value.response === 'string' && hasErrorSignalInText(value.response)) {\n    return true;\n  }\n\n  if (typeof value.text === 'string' && hasErrorSignalInText(value.text)) {\n    return true;\n  }\n\n  return Object.values(value).some((item) => hasErrorSignalInParsedValue(item));\n};\n\nconst detectToolError = (content) => {\n  const parsed = parseJsonIfPossible(content);\n  if (parsed !== null) {\n    return hasErrorSignalInParsedValue(parsed);\n  }\n\n  return hasErrorSignalInText(toStringSafe(content));\n};\n\nconst buildToolResponseLookup = (rawMessages) => {\n  const toolResponsesById = new Map();\n\n  rawMessages.forEach((message) => {\n    if (message?.type !== 'tool') {\n      return;\n    }\n\n    const response = normalizeToolResponse(message);\n    if (!response.tool_call_id || toolResponsesById.has(response.tool_call_id)) {\n      return;\n    }\n\n    toolResponsesById.set(response.tool_call_id, response);\n  });\n\n  return toolResponsesById;\n};\n\nconst items = $input.all();\nreturn items.map((item) => {\n  const rawMessages = Array.isArray(item.json.messages) ? item.json.messages : [];\n  const toolResponsesById = buildToolResponseLookup(rawMessages);\n\n  const messages = [];\n  let hasStartedWithValidHuman = false;\n  let activeTurnDatetime = null;\n\n  rawMessages.forEach((message, index) => {\n    if (message?.type === 'human') {\n      const strictHumanTurn = getStrictHumanTurnContext(message);\n      if (!strictHumanTurn) {\n        return;\n      }\n\n      hasStartedWithValidHuman = true;\n      activeTurnDatetime = strictHumanTurn.datetime;\n\n      const humanMediaUrls = Array.isArray(message?.data?.additional_kwargs?.mediaUrls)\n        ? message.data.additional_kwargs.mediaUrls.filter((url) => typeof url === 'string' && url.trim())\n        : [];\n\n      messages.push({\n        order: index,\n        type: 'human',\n        data: {\n          content: toStringSafe(message?.data?.content || message?.content),\n          media_urls: humanMediaUrls,\n        },\n        datetime: strictHumanTurn.datetime,\n        execution_id: strictHumanTurn.executionId,\n      });\n\n      return;\n    }\n\n    if (!hasStartedWithValidHuman) {\n      return;\n    }\n\n    if (message?.type !== 'ai') {\n      return;\n    }\n\n    const datetime = buildDatetime(message) || activeTurnDatetime;\n    if (!datetime) {\n      return;\n    }\n\n    const toolCalls = extractToolCalls(message);\n    if (!toolCalls.length) {\n      const aiMediaUrls = Array.isArray(message?.data?.additional_kwargs?.mediaUrls)\n        ? message.data.additional_kwargs.mediaUrls.filter((url) => typeof url === 'string' && url.trim())\n        : [];\n\n      messages.push({\n        order: index,\n        type: 'ai',\n        data: {\n          content: toStringSafe(message?.data?.content || message?.content),\n          media_urls: aiMediaUrls,\n        },\n        datetime,\n        execution_id: null,\n      });\n      return;\n    }\n\n    toolCalls.forEach((toolCall) => {\n      const matchedToolResponse = toolCall.id ? toolResponsesById.get(toolCall.id) : null;\n\n      const toolResponse = {\n        tool_call_id: toStringSafe(matchedToolResponse?.tool_call_id || toolCall.id).trim(),\n        name: toStringSafe(matchedToolResponse?.name || toolCall.name).trim(),\n        content: toStringSafe(matchedToolResponse?.content),\n      };\n\n      messages.push({\n        order: index,\n        type: 'tool',\n        data: {\n          tool_call: toolCall,\n          tool_response: toolResponse,\n          is_error: detectToolError(toolResponse.content),\n        },\n        datetime,\n        execution_id: null,\n      });\n    });\n  });\n\n  const orderedMessages = messages\n    .sort((a, b) => {\n      const timeDelta = new Date(a.datetime).getTime() - new Date(b.datetime).getTime();\n      if (timeDelta !== 0) {\n        return timeDelta;\n      }\n      return a.order - b.order;\n    })\n    .map(({ order, ...message }) => message);\n\n  return {\n    json: {\n      _id: toStringSafe(item.json._id),\n      sessionId: item.json.sessionId || '',\n      messages: orderedMessages,\n    },\n  };\n});"
+            },
+            "id": "ee9ae1f6-8bcf-4ed8-8170-f72d2ea5f5c2",
+            "name": "Format Chats",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                496
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "allIncomingItems",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "GET, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "d559683d-9e5f-4a60-a8c4-a52174542509",
+            "name": "Respond Chats",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                896,
+                496
+            ]
+        },
+        {
+            "parameters": {
+                "path": "dashboard/users-with-preview",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "91c37c2e-444e-4e97-906f-7e515e5936c4",
+            "name": "Webhook Users With Preview",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                944
+            ],
+            "webhookId": "afbca51a-46f7-4bc2-ac1d-67512d3a0988"
+        },
+        {
+            "parameters": {
+                "collection": "chats",
+                "options": {},
+                "query": "={}"
+            },
+            "id": "00a0932d-5b3c-4135-a53c-2c3b2f0c485a",
+            "name": "Mongo Chats For Preview",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                224,
+                944
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'number' || typeof value === 'boolean') return String(value);\n  try {\n    return JSON.stringify(value);\n  } catch {\n    return String(value);\n  }\n};\n\nconst pad2 = (value) => String(value).padStart(2, '0');\n\nconst parseDateString = (value) => {\n  if (!value || typeof value !== 'string') {\n    return null;\n  }\n\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(value)) {\n    return value.slice(0, 10);\n  }\n\n  const parts = value.split('/').map((part) => Number(part.trim()));\n  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {\n    return null;\n  }\n\n  const [day, month, yearRaw] = parts;\n  if (day > 31 || month > 12) {\n    return null;\n  }\n\n  const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;\n  return `${year}-${pad2(month)}-${pad2(day)}`;\n};\n\nconst parseTimeString = (value) => {\n  if (!value || typeof value !== 'string') {\n    return null;\n  }\n\n  const parts = value.split(':').map((part) => Number(part.trim()));\n  if (parts.length < 2 || parts.length > 3 || parts.some((part) => Number.isNaN(part))) {\n    return null;\n  }\n\n  const [hours, minutes, seconds = 0] = parts;\n  if (\n    hours < 0 ||\n    hours > 23 ||\n    minutes < 0 ||\n    minutes > 59 ||\n    seconds < 0 ||\n    seconds > 59\n  ) {\n    return null;\n  }\n\n  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;\n};\n\nconst buildMessageDatetime = (message) => {\n  if (message?.datetime && typeof message.datetime === 'string') {\n    const rawDatetime = message.datetime.trim();\n    if (!Number.isNaN(new Date(rawDatetime).getTime())) {\n      return rawDatetime;\n    }\n  }\n\n  const metadata = message?.data?.response_metadata || {};\n  const isHuman = message?.type === 'human';\n  const dateField =\n    (isHuman ? metadata.human_date : metadata.ai_date) || metadata.date || metadata.message_date;\n  const timeField =\n    (isHuman ? metadata.human_time : metadata.ai_time) || metadata.time || metadata.message_time;\n\n  const isoDate = parseDateString(dateField);\n  const isoTime = parseTimeString(timeField);\n  if (!isoDate || !isoTime) {\n    return null;\n  }\n\n  return `${isoDate}T${isoTime}`;\n};\n\nconst isPreviewType = (value) => value === 'human' || value === 'ai' || value === 'tool';\n\nconst normalizePreviewMessage = (message) => {\n  if (!message || typeof message !== 'object') {\n    return null;\n  }\n\n  const rawType = typeof message?.type === 'string' ? message.type.trim().toLowerCase() : '';\n  const type = isPreviewType(rawType) ? rawType : 'ai';\n\n  const datetime = buildMessageDatetime(message);\n  if (!datetime) {\n    return null;\n  }\n\n  const content =\n    type === 'tool'\n      ? toStringSafe(\n          message?.data?.tool_response?.content || message?.data?.content || message?.content\n        )\n      : toStringSafe(message?.data?.content || message?.content);\n\n  return {\n    type,\n    content,\n    datetime,\n  };\n};\n\nconst latestBySession = {};\n\nconst applyCandidate = (sessionId, candidate) => {\n  if (!candidate) return;\n  const existing = latestBySession[sessionId];\n  if (!existing || new Date(candidate.datetime).getTime() > new Date(existing.datetime).getTime()) {\n    latestBySession[sessionId] = candidate;\n  }\n};\n\nfor (const item of $input.all()) {\n  const chat = item.json || {};\n  const sessionId = toStringSafe(chat.sessionId || chat.user_id || chat.session_id).trim();\n  if (!sessionId) {\n    continue;\n  }\n\n  applyCandidate(sessionId, normalizePreviewMessage(chat.lastMessage));\n\n  const rawMessages = Array.isArray(chat.messages) ? chat.messages : [];\n  for (const message of rawMessages) {\n    applyCandidate(sessionId, normalizePreviewMessage(message));\n  }\n}\n\nreturn [\n  {\n    json: {\n      latestBySession,\n    },\n  },\n];"
+            },
+            "id": "20581a87-c8c8-443c-8ee0-56dabbb1ed6a",
+            "name": "Collect Latest By Session For Preview",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                448,
+                944
+            ]
+        },
+        {
+            "parameters": {
+                "collection": "users",
+                "options": {
+                    "projection": "={\"_id\":1,\"user_id\":1,\"username\":1,\"name\":1,\"active_image_url\":1,\"active_image_id\":1,\"image_activated_at\":1}"
+                },
+                "query": "={}"
+            },
+            "id": "a861b7d1-f8b4-4d9b-a722-d60d473add67",
+            "name": "Mongo Users For Preview",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                672,
+                944
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'object' && typeof value.toString === 'function') return value.toString();\n  return String(value);\n};\n\nconst toIsoSafe = (value) => {\n  if (!value) return null;\n  if (typeof value === 'string') return value;\n  if (value instanceof Date) return value.toISOString();\n  if (typeof value.toISOString === 'function') return value.toISOString();\n  return String(value);\n};\n\nconst latestBySession =\n  $items('Collect Latest By Session For Preview', 0, 0)?.[0]?.json?.latestBySession || {};\n\nreturn $input.all().map((item) => {\n  const userId = item.json.user_id || '';\n\n  return {\n    json: {\n      _id: toStringSafe(item.json._id),\n      user_id: userId,\n      active_image_url: item.json.active_image_url || item.json.active_image_id || '',\n      image_activated_at: toIsoSafe(item.json.image_activated_at),\n      username: toStringSafe(item.json.username || item.json.name || '').trim(),\n      latest_message: latestBySession[userId] || null,\n    },\n  };\n});"
+            },
+            "id": "4424b2fb-5dc6-4a1c-b49d-4b73925c1569",
+            "name": "Format Users With Preview",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                896,
+                944
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "allIncomingItems",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "GET, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "3928aa52-08ce-4c45-a1f1-907c4f706446",
+            "name": "Respond Users With Preview",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                1120,
+                944
+            ]
+        },
+        {
+            "parameters": {
+                "path": "dashboard/insights",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "1ce64260-7362-47f8-9cf9-f6028dc9ad79",
+            "name": "Webhook Insights",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                1168
+            ],
+            "webhookId": "a3acb00f-e632-4a0c-95d3-30f4f01a103f"
+        },
+        {
+            "parameters": {
+                "collection": "chats",
+                "options": {},
+                "query": "={}"
+            },
+            "id": "cbf49f2b-cf05-4a38-aac5-f4b5f3b6d2c3",
+            "name": "Mongo Chats For Insights",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                224,
+                1168
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "collection": "users",
+                "options": {
+                    "projection": "={\"_id\":1,\"user_id\":1,\"username\":1,\"name\":1,\"active_image_url\":1,\"active_image_id\":1,\"image_activated_at\":1}"
+                },
+                "query": "={}"
+            },
+            "id": "95f259da-8485-4483-bafd-cf57a2579d34",
+            "name": "Mongo Users For Insights",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                1168
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const chats = $('Mongo Chats For Insights').all().map(i => i.json);\n\nconst seenUserIds = new Set();\nconst users = $('Mongo Users For Insights').all()\n  .map(i => i.json)\n  .filter(u => {\n    const uid = String(u._id || u.user_id || '');\n    if (!uid || seenUserIds.has(uid)) return false;\n    seenUserIds.add(uid);\n    return true;\n  });\n\nlet totalMessages = 0;\nlet humanCount = 0, aiCount = 0, toolCount = 0, toolErrors = 0;\nconst messagesByDate = {};\nconst toolUsage = {};\nconst userMessageCounts = {};\nconst activityByHour = Array(24).fill(0);\nconst activityByDateHour = {};\n\nfor (const chat of chats) {\n  const msgs = chat.messages || [];\n  const sid = chat.sessionId;\n  userMessageCounts[sid] = (userMessageCounts[sid] || 0) + msgs.length;\n\n  for (const msg of msgs) {\n    totalMessages++;\n    const type = msg.type || (msg.kwargs?.type);\n    const dt = msg.datetime || msg.response_metadata?.human_date;\n\n    if (type === 'human') humanCount++;\n    else if (type === 'ai') aiCount++;\n    else if (type === 'tool') {\n      toolCount++;\n      if (msg.data?.is_error || msg.is_error) toolErrors++;\n    }\n\n    if (dt) {\n      const dateKey = String(dt).slice(0, 10);\n      if (!messagesByDate[dateKey]) messagesByDate[dateKey] = { human: 0, ai: 0, tool: 0 };\n      messagesByDate[dateKey][type] = (messagesByDate[dateKey][type] || 0) + 1;\n\n      const timeStr = msg.datetime ? String(dt).slice(11, 13) : (msg.response_metadata?.human_time || '').slice(0, 2);\n      const hour = parseInt(timeStr, 10);\n      if (!isNaN(hour) && hour >= 0 && hour < 24) {\n        activityByHour[hour]++;\n        const bucketKey = dateKey + '|' + hour;\n        if (!activityByDateHour[bucketKey]) activityByDateHour[bucketKey] = { date: dateKey, hour, count: 0 };\n        activityByDateHour[bucketKey].count++;\n      }\n    }\n\n    const toolName = msg.data?.tool_call?.name || msg.name;\n    if (toolName) {\n      if (!toolUsage[toolName]) toolUsage[toolName] = { calls: 0, errors: 0 };\n      toolUsage[toolName].calls++;\n      if (msg.data?.is_error || msg.is_error) toolUsage[toolName].errors++;\n    }\n  }\n}\n\nconst totalUsers = users.length;\nconst activeSessions = chats.filter(c => (c.messages || []).length > 0).length;\nconst _generateImageTool = toolUsage['generate_image'] || {};\nconst imagesGenerated = (_generateImageTool.calls || 0) - (_generateImageTool.errors || 0);\nconst avgMessagesPerUser = totalUsers > 0 ? Math.round(totalMessages / totalUsers) : 0;\nconst toolErrorRate = toolCount > 0 ? Math.round((toolErrors / toolCount) * 100) : 0;\n\nconst topUsers = Object.entries(userMessageCounts)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 10)\n  .map(([sessionId, count]) => {\n    const user = users.find(u => u.user_id === sessionId || u._id === sessionId);\n    return { sessionId, messageCount: count, username: user?.username || null };\n  });\n\nreturn [{\n  json: {\n    overview: { totalUsers, totalMessages, activeSessions, imagesGenerated, avgMessagesPerUser, toolErrorRate },\n    messagesByDate: Object.entries(messagesByDate)\n      .sort((a, b) => a[0].localeCompare(b[0]))\n      .map(([date, counts]) => ({ date, ...counts, total: (counts.human||0)+(counts.ai||0)+(counts.tool||0) })),\n    messageTypeBreakdown: { human: humanCount, ai: aiCount, tool: toolCount },\n    toolUsage: Object.entries(toolUsage)\n      .sort((a, b) => b[1].calls - a[1].calls)\n      .map(([name, d]) => ({ name, calls: d.calls, errors: d.errors, successRate: Math.round(((d.calls - d.errors) / d.calls) * 100) })),\n    topUsers,\n    activityByHour: activityByHour.map((count, hour) => ({ hour, count })),\n    activityByDateHour: Object.values(activityByDateHour)\n      .sort((a, b) => {\n        if (a.date !== b.date) return a.date.localeCompare(b.date);\n        return a.hour - b.hour;\n      })\n  }\n}];"
+            },
+            "id": "1865f0d2-3535-48b9-8e12-2224d47d0ffb",
+            "name": "Compute Insights",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                1168
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "allIncomingItems",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "GET, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "befe13d6-7f16-4106-8c22-d193f1ff826f",
+            "name": "Respond Insights",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                896,
+                1168
+            ]
+        },
+        {
+            "parameters": {
+                "path": "dashboard/read-receipts-v2",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "999d8969-a3a9-4bcb-a30b-6f8f96f23318",
+            "name": "Webhook Read Receipts (GET)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                1392
+            ],
+            "webhookId": "df51199f-1e71-4f62-b6b6-3362fe15b17f"
+        },
+        {
+            "parameters": {
+                "jsCode": "const query = $input.first().json.query || {};\nconst chatUserIdsRaw = typeof query.chatUserIds === 'string' ? query.chatUserIds.trim() : '';\nconst singleChatUserId = typeof query.chatUserId === 'string' ? query.chatUserId.trim() : '';\n\nlet mongoQuery = {};\n\nif (chatUserIdsRaw) {\n  const ids = chatUserIdsRaw\n    .split(',')\n    .map((s) => s.trim())\n    .filter(Boolean);\n\n  mongoQuery = ids.length ? { chatUserId: { $in: ids } } : { chatUserId: '__none__' };\n} else if (singleChatUserId) {\n  mongoQuery = { chatUserId: singleChatUserId };\n}\n\nreturn [{\n  json: {\n    mongoQueryString: JSON.stringify(mongoQuery),\n  },\n}];"
+            },
+            "id": "6dc88baf-5d9f-49c5-bda7-f34be502b9a7",
+            "name": "Build Read Receipts Query",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                224,
+                1392
+            ]
+        },
+        {
+            "parameters": {
+                "collection": "read_receipts",
+                "options": {},
+                "query": "={{$json.mongoQueryString}}"
+            },
+            "id": "9f92271c-4742-455a-aa70-6bd3a7a77146",
+            "name": "Mongo Read Receipts",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                1392
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (value instanceof Date) return value.toISOString();\n  if (typeof value === 'object' && typeof value.toString === 'function') return value.toString();\n  return String(value);\n};\n\nconst toIsoSafe = (value) => {\n  if (!value) return null;\n  const parsed = new Date(value).getTime();\n  if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();\n  return toStringSafe(value);\n};\n\nreturn $input.all().map((item) => ({\n  json: {\n    chatUserId: toStringSafe(item.json.chatUserId).trim(),\n    reviewerName: toStringSafe(item.json.reviewerName).trim().toLowerCase(),\n    lastReadDatetime: toIsoSafe(item.json.lastReadDatetime),\n    markedAt: toIsoSafe(item.json.markedAt),\n  },\n}));"
+            },
+            "id": "769fc6b2-5bae-4333-9273-96385f2897f5",
+            "name": "Format Read Receipts",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                1392
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "allIncomingItems",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "GET, OPTIONS"
+                            }
+                        ]
+                    }
+                }
+            },
+            "id": "4f6db88c-6c3d-4749-8661-0d071b2f6150",
+            "name": "Respond Read Receipts (GET)",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                896,
+                1392
+            ]
+        },
+        {
+            "parameters": {
+                "path": "dashboard/read-receipts-v2",
+                "httpMethod": "POST",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "id": "d05ed3e1-7e95-48e0-9bae-31d7f76ab36d",
+            "name": "Webhook Read Receipts (POST)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                0,
+                1616
+            ],
+            "webhookId": "978f3650-1cd4-46e3-9f9a-721f8e5a518f"
+        },
+        {
+            "parameters": {
+                "jsCode": "const body = $input.first().json.body || {};\n\nconst chatUserId = String(body.chatUserId || '').trim();\nconst reviewerName = String(body.reviewerName || '').trim().toLowerCase();\nconst lastReadDatetime = String(body.lastReadDatetime || '').trim();\nconst markedAt = String(body.markedAt || '').trim() || new Date().toISOString();\n\nif (!chatUserId || !reviewerName || !lastReadDatetime) {\n  throw new Error('chatUserId, reviewerName, and lastReadDatetime are required');\n}\n\nconst id = `${chatUserId}::${reviewerName}`;\n\nreturn [{\n  json: {\n    id,\n    chatUserId,\n    reviewerName,\n    lastReadDatetime,\n    markedAt,\n  },\n}];"
+            },
+            "id": "ea3e7d48-1707-4d9d-87b0-22e08c545ad7",
+            "name": "Build Read Receipt Upsert",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                224,
+                1616
+            ]
+        },
+        {
+            "parameters": {
+                "resource": "document",
+                "operation": "update",
+                "collection": "read_receipts",
+                "updateKey": "id",
+                "fields": "id,chatUserId,reviewerName,lastReadDatetime,markedAt",
+                "upsert": true,
+                "options": {}
+            },
+            "id": "a2dd2057-3780-42f4-9ff1-f2a9d6b5a9e4",
+            "name": "Mongo Upsert Read Receipt",
+            "type": "n8n-nodes-base.mongoDb",
+            "typeVersion": 1.2,
+            "position": [
+                448,
+                1616
+            ],
+            "credentials": {
+                "mongoDb": {
+                    "id": "6umxlobyeKMMOQ1C",
+                    "name": "MongoDB - tiadib"
+                }
+            },
+            "alwaysOutputData": true
+        },
+        {
+            "parameters": {
+                "jsCode": "return [{ json: { success: true } }];"
+            },
+            "id": "45cf9bb9-1224-4325-8347-7500b9fc0e75",
+            "name": "Return Read Receipt Success",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                1616
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "Access-Control-Allow-Origin",
+                                "value": "*"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Headers",
+                                "value": "Content-Type, x-api-key"
+                            },
+                            {
+                                "name": "Access-Control-Allow-Methods",
+                                "value": "POST, OPTIONS"
+                            }
+                        ]
+                    }
+                },
+                "responseBody": "{\"success\":true}"
+            },
+            "id": "56e81da5-2f6f-4a39-a2b9-77c5c517ba89",
+            "name": "Respond Read Receipts (POST)",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.2,
+            "position": [
+                896,
+                1616
+            ]
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "Webhook Users": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Users",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Users": {
+            "main": [
+                [
+                    {
+                        "node": "Format Users",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Users": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Users",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Chats": {
+            "main": [
+                [
+                    {
+                        "node": "Build Chats Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Chats Query": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Chats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Chats": {
+            "main": [
+                [
+                    {
+                        "node": "Format Chats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Chats": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Chats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Users With Preview": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Chats For Preview",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Chats For Preview": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Latest By Session For Preview",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect Latest By Session For Preview": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Users For Preview",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Users For Preview": {
+            "main": [
+                [
+                    {
+                        "node": "Format Users With Preview",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Users With Preview": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Users With Preview",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Insights": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Chats For Insights",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Chats For Insights": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Users For Insights",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Users For Insights": {
+            "main": [
+                [
+                    {
+                        "node": "Compute Insights",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Compute Insights": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Insights",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Read Receipts (GET)": {
+            "main": [
+                [
+                    {
+                        "node": "Build Read Receipts Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Read Receipts Query": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Read Receipts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Read Receipts": {
+            "main": [
+                [
+                    {
+                        "node": "Format Read Receipts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Read Receipts": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Read Receipts (GET)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Webhook Read Receipts (POST)": {
+            "main": [
+                [
+                    {
+                        "node": "Build Read Receipt Upsert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Read Receipt Upsert": {
+            "main": [
+                [
+                    {
+                        "node": "Mongo Upsert Read Receipt",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mongo Upsert Read Receipt": {
+            "main": [
+                [
+                    {
+                        "node": "Return Read Receipt Success",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Return Read Receipt Success": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Read Receipts (POST)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": true,
+    "settings": {
+        "executionOrder": "v1",
+        "binaryMode": "separate",
+        "availableInMCP": false,
+        "timeSavedMode": "fixed",
+        "callerPolicy": "workflowsFromSameOwner"
+    },
+    "versionId": "9e7bae26-2fd2-4140-8ea5-a82abf87877b",
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "9c13c98f3fe7b2d50904219393a9cb022f6e60b4da18560c52c257df03d9d87e"
+    },
+    "id": "ne9Tu5UOgKHrPDlsPqq1R",
+    "tags": []
+}
+
+

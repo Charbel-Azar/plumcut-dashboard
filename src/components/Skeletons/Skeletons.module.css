@@ -1,0 +1,103 @@
+.pulse {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-surface-alt);
+}
+
+.pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.34) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.userCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.userAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+}
+
+.userBody {
+  flex: 1;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.userLine {
+  height: 12px;
+  border-radius: 999px;
+}
+
+.userLineShort {
+  width: 62%;
+}
+
+.messageWrap {
+  height: 100%;
+  padding: 16px;
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: 10px;
+}
+
+.messageBubble {
+  height: 38px;
+  border-radius: 14px;
+  width: 72%;
+}
+
+.messageBubbleRight {
+  justify-self: end;
+  width: 66%;
+}
+
+.metricCard {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+  display: grid;
+  gap: 8px;
+}
+
+.metricIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+.metricValue {
+  width: 58%;
+  height: 26px;
+  border-radius: 8px;
+}
+
+.metricLabel {
+  width: 78%;
+  height: 12px;
+  border-radius: 999px;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

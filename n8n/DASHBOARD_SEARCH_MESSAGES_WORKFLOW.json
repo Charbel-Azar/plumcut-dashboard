@@ -1,0 +1,153 @@
+{
+  "name": "TIA Dashboard Search Messages API",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "dashboard/search-messages",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c4ef343e-6ff5-4d8d-a12b-0466f634abf0",
+      "name": "Webhook Search Messages",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "b160625f-4f39-4b57-9fec-f7b4509f7a5f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = String($input.first().json.query?.q || '').trim();\nconst limitRaw = Number.parseInt(String($input.first().json.query?.limit || '20'), 10);\nconst limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 50) : 20;\n\nreturn [{\n  json: {\n    query,\n    queryLower: query.toLowerCase(),\n    limit,\n  },\n}];"
+      },
+      "id": "fd6408d6-70be-42cf-8500-7804af2d0af4",
+      "name": "Build Search Params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "collection": "chats",
+        "options": {
+          "projection": "={\"_id\":0,\"sessionId\":1,\"messages\":1}"
+        },
+        "query": "={}"
+      },
+      "id": "8bc4f254-d518-4fc7-9e2e-c4a07dce5745",
+      "name": "Mongo Chats For Search",
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        208
+      ],
+      "credentials": {
+        "mongoDb": {
+          "id": "6umxlobyeKMMOQ1C",
+          "name": "MongoDB - tiadib"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const params = $('Build Search Params').first().json || {};\nconst query = String(params.query || '').trim();\nconst queryLower = String(params.queryLower || '').trim();\nconst limit = Math.min(Math.max(Number(params.limit) || 20, 1), 50);\n\nif (!query || query.length < 2 || !queryLower) {\n  return [];\n}\n\nconst toStringSafe = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string') return value;\n  if (typeof value === 'number' || typeof value === 'boolean') return String(value);\n  try {\n    return JSON.stringify(value);\n  } catch {\n    return String(value);\n  }\n};\n\nconst normalizeText = (value) => toStringSafe(value).replace(/\\s+/g, ' ').trim();\n\nconst pad2 = (value) => String(value).padStart(2, '0');\n\nconst parseDate = (raw) => {\n  const text = normalizeText(raw);\n  if (!text) return null;\n  if (/^\\d{4}-\\d{2}-\\d{2}/.test(text)) return text.slice(0, 10);\n\n  const parts = text.split('/').map((part) => Number(part.trim()));\n  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return null;\n\n  const [day, month, yearRaw] = parts;\n  if (!day || !month || !yearRaw) return null;\n  const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;\n  return `${year}-${pad2(month)}-${pad2(day)}`;\n};\n\nconst parseTime = (raw) => {\n  const text = normalizeText(raw);\n  if (!text) return null;\n\n  const parts = text.split(':').map((part) => Number(part.trim()));\n  if (parts.length < 2 || parts.length > 3 || parts.some((part) => Number.isNaN(part))) return null;\n\n  const [hour, minute, second = 0] = parts;\n  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;\n  return `${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;\n};\n\nconst extractDatetime = (message) => {\n  const direct = normalizeText(message?.datetime);\n  if (direct && !Number.isNaN(new Date(direct).getTime())) {\n    return new Date(direct).toISOString();\n  }\n\n  const metadata = message?.data?.response_metadata || {};\n  const isHuman = normalizeText(message?.type).toLowerCase() === 'human';\n  const dateRaw = (isHuman ? metadata.human_date : metadata.ai_date) || metadata.date || metadata.message_date;\n  const timeRaw = (isHuman ? metadata.human_time : metadata.ai_time) || metadata.time || metadata.message_time;\n\n  const isoDate = parseDate(dateRaw);\n  const isoTime = parseTime(timeRaw);\n  if (!isoDate || !isoTime) return null;\n\n  const merged = `${isoDate}T${isoTime}`;\n  return Number.isNaN(new Date(merged).getTime()) ? null : new Date(merged).toISOString();\n};\n\nconst getMessageContent = (message) => {\n  const type = normalizeText(message?.type).toLowerCase();\n\n  if (type === 'tool') {\n    const toolName = normalizeText(message?.data?.tool_call?.name || message?.data?.tool_response?.name || message?.name);\n    const toolContent = normalizeText(message?.data?.tool_response?.content || message?.data?.content || message?.content);\n    return normalizeText(`${toolName} ${toolContent}`);\n  }\n\n  const primary = normalizeText(message?.data?.content || message?.content);\n  if (primary) return primary;\n\n  const fallback = normalizeText(message?.data?.tool_response?.content);\n  return fallback;\n};\n\nconst hits = [];\nfor (const item of $input.all()) {\n  const sessionId = normalizeText(item.json.sessionId);\n  if (!sessionId) continue;\n\n  const messages = Array.isArray(item.json.messages) ? item.json.messages : [];\n  for (const message of messages) {\n    const content = getMessageContent(message);\n    if (!content) continue;\n\n    if (!content.toLowerCase().includes(queryLower)) continue;\n\n    const datetime = extractDatetime(message);\n    hits.push({\n      sessionId,\n      userId: sessionId,\n      content,\n      excerpt: content.length > 140 ? `${content.slice(0, 140).trimEnd()}...` : content,\n      datetime,\n    });\n  }\n}\n\nhits.sort((a, b) => {\n  const aTs = a.datetime ? new Date(a.datetime).getTime() : 0;\n  const bTs = b.datetime ? new Date(b.datetime).getTime() : 0;\n  return bTs - aTs;\n});\n\nreturn hits.slice(0, limit).map((hit) => ({ json: hit }));"
+      },
+      "id": "4b35caf8-bf0a-43ca-a0dc-5ccbe11ec5f2",
+      "name": "Search Messages In Chats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-api-key"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "GET, OPTIONS"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f4d6ad5b-e2f4-4dfe-9a05-c43c147663b9",
+      "name": "Respond Search Messages",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        208
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Search Messages": {
+      "main": [
+        [
+          {
+            "node": "Build Search Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search Params": {
+      "main": [
+        [
+          {
+            "node": "Mongo Chats For Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mongo Chats For Search": {
+      "main": [
+        [
+          {
+            "node": "Search Messages In Chats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Messages In Chats": {
+      "main": [
+        [
+          {
+            "node": "Respond Search Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}

@@ -1,0 +1,57 @@
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+  padding: 20px;
+  transition: box-shadow 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.09);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.02rem;
+  color: var(--color-primary-text);
+}
+
+.chartWrap {
+  position: relative;
+  width: 100%;
+  min-height: 300px;
+  margin-top: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.scrollable {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+
+.scrollable::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent 85%, rgba(0, 0, 0, 0.08));
+}
+
+html[data-theme="dark"] .scrollable::after {
+  background: linear-gradient(to right, transparent 85%, rgba(17, 15, 20, 0.9));
+}
+
+.empty {
+  margin: 8px 0 0;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-muted);
+}
