@@ -1,12 +1,12 @@
 # Read Receipts Workflows (n8n)
 
-Build these as two separate workflows in n8n. This matches the existing `dashboard/*` pattern used in this repo.
+Build these as two separate workflows in n8n. This matches the existing `plum-dashboard/*` pattern used in this repo.
 
-## Workflow A: GET `dashboard/read-receipts-v2`
+## Workflow A: GET `plum-dashboard/read-receipts-v2`
 
 1. Add `Webhook` node:
 - `HTTP Method`: `GET`
-- `Path`: `dashboard/read-receipts-v2`
+- `Path`: `plum-dashboard/read-receipts-v2`
 - `Response Mode`: `Response Node`
 
 2. Add `IF` node:
@@ -61,11 +61,11 @@ Expected response shape:
 ]
 ```
 
-## Workflow B: POST `dashboard/read-receipts-v2` (upsert)
+## Workflow B: POST `plum-dashboard/read-receipts-v2` (upsert)
 
 1. Add `Webhook` node:
 - `HTTP Method`: `POST`
-- `Path`: `dashboard/read-receipts-v2`
+- `Path`: `plum-dashboard/read-receipts-v2`
 - `Response Mode`: `Response Node`
 
 2. Add `Code` node (`Build Read Receipt Upsert`) before MongoDB:
@@ -118,7 +118,7 @@ return [{
 
 ```bash
 # POST upsert
-curl -X POST "https://YOUR_N8N/webhook/dashboard/read-receipts-v2" \
+curl -X POST "https://YOUR_N8N/webhook/plum-dashboard/read-receipts-v2" \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_KEY" \
   -d '{
@@ -129,10 +129,10 @@ curl -X POST "https://YOUR_N8N/webhook/dashboard/read-receipts-v2" \
   }'
 
 # GET single
-curl "https://YOUR_N8N/webhook/dashboard/read-receipts-v2?chatUserId=whatsapp:+96170XXXXXX" \
+curl "https://YOUR_N8N/webhook/plum-dashboard/read-receipts-v2?chatUserId=whatsapp:+96170XXXXXX" \
   -H "x-api-key: YOUR_KEY"
 
 # GET batch
-curl "https://YOUR_N8N/webhook/dashboard/read-receipts-v2?chatUserIds=whatsapp:+96170XXXXXX,whatsapp:+96111YYYYYY" \
+curl "https://YOUR_N8N/webhook/plum-dashboard/read-receipts-v2?chatUserIds=whatsapp:+96170XXXXXX,whatsapp:+96111YYYYYY" \
   -H "x-api-key: YOUR_KEY"
 ```

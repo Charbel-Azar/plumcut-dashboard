@@ -1,9 +1,9 @@
 {
-    "name": "TIA Dashboard Backend API",
+    "name": "Plumcut Dashboard Backend API",
     "nodes": [
         {
             "parameters": {
-                "path": "dashboard/users",
+                "path": "plum-dashboard/users",
                 "responseMode": "responseNode",
                 "options": {}
             },
@@ -36,7 +36,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -86,7 +86,7 @@
         },
         {
             "parameters": {
-                "path": "dashboard/chats",
+                "path": "plum-dashboard/chats",
                 "responseMode": "responseNode",
                 "options": {}
             },
@@ -130,7 +130,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -180,7 +180,7 @@
         },
         {
             "parameters": {
-                "path": "dashboard/users-with-preview",
+                "path": "plum-dashboard/users-with-preview",
                 "responseMode": "responseNode",
                 "options": {}
             },
@@ -211,7 +211,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -247,7 +247,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -297,7 +297,7 @@
         },
         {
             "parameters": {
-                "path": "dashboard/insights",
+                "path": "plum-dashboard/insights",
                 "responseMode": "responseNode",
                 "options": {}
             },
@@ -328,7 +328,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -351,7 +351,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -401,7 +401,7 @@
         },
         {
             "parameters": {
-                "path": "dashboard/read-receipts-v2",
+                "path": "plum-dashboard/read-receipts-v2",
                 "responseMode": "responseNode",
                 "options": {}
             },
@@ -445,7 +445,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             }
         },
@@ -495,7 +495,7 @@
         },
         {
             "parameters": {
-                "path": "dashboard/read-receipts-v2",
+                "path": "plum-dashboard/read-receipts-v2",
                 "httpMethod": "POST",
                 "responseMode": "responseNode",
                 "options": {}
@@ -544,7 +544,7 @@
             "credentials": {
                 "mongoDb": {
                     "id": "6umxlobyeKMMOQ1C",
-                    "name": "MongoDB - tiadib"
+                    "name": "MongoDB - plumcut"
                 }
             },
             "alwaysOutputData": true

@@ -1,9 +1,9 @@
 {
-  "name": "TIA Dashboard Search Messages API",
+  "name": "Plumcut Dashboard Search Messages API",
   "nodes": [
     {
       "parameters": {
-        "path": "dashboard/search-messages",
+        "path": "plum-dashboard/search-messages",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -49,7 +49,7 @@
       "credentials": {
         "mongoDb": {
           "id": "6umxlobyeKMMOQ1C",
-          "name": "MongoDB - tiadib"
+          "name": "MongoDB - plumcut"
         }
       }
     },

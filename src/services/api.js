@@ -1267,7 +1267,7 @@ async function computeInsightsFromExistingData() {
 // Fetch users from API, with mock-data fallback if request fails.
 export async function fetchUsers() {
   try {
-    const payload = await fetchJson("dashboard/users");
+    const payload = await fetchJson("plum-dashboard/users");
     const users = Array.isArray(payload) ? payload : [];
     return users.map(normalizeUser);
   } catch (error) {
@@ -1287,7 +1287,7 @@ export async function fetchUsersWithPreview() {
       : undefined;
 
   try {
-    const payload = await fetchJson("dashboard/users-with-preview", undefined, {
+    const payload = await fetchJson("plum-dashboard/users-with-preview", undefined, {
       cache: "no-store",
       signal: timeoutSignal,
     });
@@ -1318,7 +1318,7 @@ export async function fetchUsersWithPreview() {
 // Fetch chats (optionally by user), normalize them, and fallback to mock data.
 export async function fetchChats(userId) {
   try {
-    const payload = await fetchJson("dashboard/chats", { userId });
+    const payload = await fetchJson("plum-dashboard/chats", { userId });
     const chats = Array.isArray(payload) ? payload : [];
     const normalized = chats.map(normalizeChat);
     if (!userId) {
@@ -1339,8 +1339,8 @@ export async function fetchChats(userId) {
 }
 
 const READ_RECEIPTS_PATH_CANDIDATES = [
-  "dashboard/read-receipts-v2",
-  "dashboard/read-receipts",
+  "plum-dashboard/read-receipts-v2",
+  "plum-dashboard/read-receipts",
 ];
 
 function isNotFoundRequestError(error) {
@@ -1536,7 +1536,7 @@ export async function upsertReadReceipt({
 // Fetch analytics insights, or compute them locally if API fails.
 export async function fetchInsights() {
   try {
-    const rawPayload = await fetchJson("dashboard/insights", undefined, {
+    const rawPayload = await fetchJson("plum-dashboard/insights", undefined, {
       next: { revalidate: 0 },
     });
     const payload = Array.isArray(rawPayload) && rawPayload.length > 0 ? rawPayload[0] : rawPayload;
@@ -1718,7 +1718,7 @@ export async function searchMessages(query, limit = 20) {
 
   try {
     const payload = await fetchJson(
-      "dashboard/search-messages",
+      "plum-dashboard/search-messages",
       { q: normalizedQuery, limit: normalizedLimit },
       { cache: "no-store" }
     );

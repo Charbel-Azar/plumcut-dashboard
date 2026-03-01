@@ -37,9 +37,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## n8n Backend Integration
 
-1. Import `n8n/tia-dashboard-backend.workflow.json` in n8n.
-2. Attach your MongoDB credential to all Mongo nodes.
-3. Activate the workflow.
-4. Create `.env.local` from `env.template` and set:
+
+1. Import `n8n/PLUMCUT_DASHBOARD_BACKEND_API.json` in n8n.
+2. Import `n8n/PLUMCUT_DASHBOARD_SEARCH_MESSAGES_WORKFLOW.json` in n8n.
+3. Attach your MongoDB credential to all Mongo nodes (`MongoDB - plumcut`).
+4. Activate both workflows (webhooks are under `plum-dashboard/*`).
+5. Create `.env.local` from `env.template` and set:
    - `N8N_DASHBOARD_API_BASE_URL` (usually `https://n8n.plumcut.com/webhook`)
    - `N8N_DASHBOARD_API_KEY` (optional for now)
