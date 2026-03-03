@@ -3,7 +3,7 @@ import { RefreshProvider } from "@/context/RefreshContext";
 import { ToastProvider } from "@/context/ToastContext";
 
 export const metadata = {
-  title: "Tia Dib Dashboard",
+  title: "plumcut Dashboard",
   description: "WhatsApp chatbot admin dashboard",
   icons: {
     icon: "/plumcut-favicon.png?v=2",
@@ -15,7 +15,7 @@ export const metadata = {
 const themeInitScript = `
 (() => {
   try {
-    const savedTheme = window.localStorage.getItem("tia-dashboard-theme");
+    const savedTheme = window.localStorage.getItem("plumcut-dashboard-theme");
     if (savedTheme === "dark" || savedTheme === "light") {
       document.documentElement.setAttribute("data-theme", savedTheme);
     }

@@ -219,7 +219,7 @@ export default function Home() {
         </div>
       </div>
       <div className="login-card">
-        <h1 className="login-title">Tia Dib Dashboard Login</h1>
+        <h1 className="login-title">plumcut Dashboard Login</h1>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-field">
             <label htmlFor="username">Username</label>

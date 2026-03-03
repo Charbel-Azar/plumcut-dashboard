@@ -124,7 +124,7 @@ const navItems = [
   { href: "/insights", label: "Insights", icon: <DashboardIcon /> },
 ];
 
-const THEME_STORAGE_KEY = "tia-dashboard-theme";
+const THEME_STORAGE_KEY = "plumcut-dashboard-theme";
 
 export default function Sidebar({ onChatsNavClick, unreviewedCount = 0 }) {
   const pathname = usePathname();
@@ -260,7 +260,7 @@ export default function Sidebar({ onChatsNavClick, unreviewedCount = 0 }) {
       )}
 
       <aside className={styles.sidebar}>
-        <div className={styles.logo}>TIA DIB</div>
+        <div className={styles.logo}>plumcut</div>
         <nav className={styles.nav}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;

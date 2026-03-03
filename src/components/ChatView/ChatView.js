@@ -590,7 +590,7 @@ export default function ChatView({
   if (!user) {
     return (
       <div className={styles.emptyState}>
-        <div className={styles.emptyBrand}>TIA DIB</div>
+        <div className={styles.emptyBrand}>plumcut</div>
         <ChatIcon />
         <p>Select a conversation to start reviewing</p>
         <p className={styles.emptyHint}>Use the search or browse the list on the left</p>
