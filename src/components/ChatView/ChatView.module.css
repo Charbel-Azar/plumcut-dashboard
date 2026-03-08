@@ -336,9 +336,9 @@
 }
 
 .messageDeepLinkedTarget {
-  background: rgba(238, 116, 24, 0.12);
-  box-shadow: 0 0 0 1px rgba(238, 116, 24, 0.35);
-  animation: deepLinkedPulse 2.4s ease-out 1;
+  background: rgba(238, 116, 24, 0.18);
+  box-shadow: 0 0 0 2px rgba(238, 116, 24, 0.5);
+  animation: deepLinkedPulse 2s ease-out 0.5s 1 forwards;
 }
 
 @keyframes activeMatchGlowFade {
@@ -355,13 +355,13 @@
 
 @keyframes deepLinkedPulse {
   0% {
-    background: rgba(238, 116, 24, 0.26);
-    box-shadow: 0 0 0 2px rgba(238, 116, 24, 0.48);
+    background: rgba(238, 116, 24, 0.45);
+    box-shadow: 0 0 0 3px rgba(238, 116, 24, 0.7), 0 0 20px rgba(238, 116, 24, 0.3);
   }
 
   100% {
-    background: rgba(238, 116, 24, 0.12);
-    box-shadow: 0 0 0 1px rgba(238, 116, 24, 0.35);
+    background: rgba(238, 116, 24, 0.18);
+    box-shadow: 0 0 0 2px rgba(238, 116, 24, 0.5);
   }
 }
 
