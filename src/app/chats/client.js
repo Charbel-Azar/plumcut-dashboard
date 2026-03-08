@@ -439,6 +439,7 @@ export default function ChatsClient({ users: initialUsers, initialSelectedUserId
     const userIdParam = params.get("userId");
     const dateFrom = getValidDateParam(params.get("dateFrom"));
     const dateTo = getValidDateParam(params.get("dateTo"));
+    const messageDatetime = String(params.get("messageDatetime") || "").trim();
 
     if (userIdParam) {
       setSelectedUserId(userIdParam);
@@ -449,6 +450,14 @@ export default function ChatsClient({ users: initialUsers, initialSelectedUserId
       setInitialDateRange(
         dateFrom <= dateTo ? { start: dateFrom, end: dateTo } : { start: dateTo, end: dateFrom }
       );
+    }
+
+    if (messageDatetime) {
+      setFocusedMessageDatetime(messageDatetime);
+      const day = getValidDateParam(messageDatetime.slice(0, 10));
+      if (day) {
+        setFocusedChatDay(day);
+      }
     }
   }, []);
 
@@ -592,7 +601,9 @@ export default function ChatsClient({ users: initialUsers, initialSelectedUserId
             <div className={styles.listHeaderMeta}>
               <h1 className={styles.listHeaderTitle}>Chats</h1>
               <p className={styles.listHeaderCount}>{listCountLabel}</p>
-              <p className={styles.listHeaderUpdated}>{lastUpdatedLabel}</p>
+              <p className={styles.listHeaderUpdated} suppressHydrationWarning>
+                {lastUpdatedLabel}
+              </p>
             </div>
             <GlobalSearch onSelectUser={handleSelectSearchResult} />
           </div>

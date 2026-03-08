@@ -184,6 +184,7 @@ export default function Home() {
       if (payload?.name) {
         localStorage.setItem("reviewerDisplayName", String(payload.name));
       }
+      localStorage.setItem("dashboardEnv", String(payload?.environment || "production"));
 
       router.push("/chats");
     } catch (submitError) {

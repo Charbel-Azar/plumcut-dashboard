@@ -14,6 +14,16 @@
   align-items: flex-end;
 }
 
+.bubbleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.bubbleRow .bubble {
+  min-width: 0;
+}
+
 .bubble {
   padding: 10px 12px;
   border-radius: 8px;
@@ -171,6 +181,72 @@
   color: var(--color-muted);
 }
 
+.reportBugBtn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-self: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.86rem;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease,
+    color var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.reportBugBtn:hover {
+  transform: translateY(-1px);
+}
+
+.aiRow:hover .reportBugBtn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reportBugBtnLoading,
+.reportBugBtnSuccess,
+.reportBugBtnError {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reportBugBtnLoading {
+  color: var(--color-muted);
+}
+
+.reportBugBtnSuccess {
+  color: #15803d;
+  border-color: rgba(21, 128, 61, 0.35);
+}
+
+.reportBugBtnError {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.35);
+}
+
+.reportBugSpinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  display: inline-block;
+  animation: reportBugSpin 0.8s linear infinite;
+}
+
+@keyframes reportBugSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .mediaList {
   margin-top: 10px;
   display: flex;
@@ -242,5 +318,12 @@
   .mediaVideo,
   .mediaAudio {
     max-width: 260px;
+  }
+}
+
+@media (hover: none) {
+  .reportBugBtn {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

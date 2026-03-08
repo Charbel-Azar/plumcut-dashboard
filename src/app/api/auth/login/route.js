@@ -37,8 +37,10 @@ function parseCredentials(rawCredentials) {
 
 export async function POST(request) {
   try {
-    const credentials = parseCredentials(process.env.REVIEWER_CREDENTIALS);
-    if (credentials.size === 0) {
+    const productionCredentials = parseCredentials(process.env.REVIEWER_CREDENTIALS);
+    const testCredentials = parseCredentials(process.env.TEST_REVIEWER_CREDENTIALS);
+
+    if (productionCredentials.size === 0 && testCredentials.size === 0) {
       return NextResponse.json({ error: "Server credentials are not configured." }, { status: 500 });
     }
 
@@ -52,15 +54,32 @@ export async function POST(request) {
       return NextResponse.json({ error: "Username and password are required." }, { status: 400 });
     }
 
-    const reviewer = credentials.get(username);
+    let reviewer = productionCredentials.get(username);
+    let environment = "production";
+
+    if (!reviewer || reviewer.password !== password) {
+      reviewer = testCredentials.get(username);
+      environment = "test";
+    }
+
     if (!reviewer || reviewer.password !== password) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       name: reviewer.displayName,
       reviewerName: username,
+      environment,
     });
+
+    response.cookies.set("__env", environment, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("[dashboard] /api/auth/login error:", error?.message || error);
     return NextResponse.json({ error: "Login failed." }, { status: 500 });

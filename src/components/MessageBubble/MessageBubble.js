@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { parseAIMessage } from "@/utils/parseAIMessage";
 import styles from "./MessageBubble.module.css";
 
-const N8N_EXECUTION_BASE_URL = "https://n8n.plumcut.com/workflow/OCYvieDL6GMoxbYuM06ml/executions";
+const isTestEnv = typeof window !== "undefined" && localStorage.getItem("dashboardEnv") === "test";
+const N8N_EXECUTION_BASE_URL = isTestEnv
+  ? "https://n8n-testing.plumcut.com/workflow/DvQnmrtHLO4UPMuP/executions"
+  : "https://n8n.plumcut.com/workflow/OCYvieDL6GMoxbYuM06ml/executions";
+const PRODUCTION_BUG_REPORTERS = new Set(["charbel", "nour", "michael"]);
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/gi;
 const TWILIO_MEDIA_PATH_PATTERN = /^\/2010-04-01\/Accounts\/[^/]+\/Messages\/[^/]+\/Media\/[^/?#]+\/?$/i;
 const GOOGLE_DRIVE_HOSTS = new Set(["drive.google.com", "docs.google.com"]);
@@ -322,12 +326,32 @@ function MediaAttachments({ content, extraUrls, messageKey }) {
   );
 }
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, clientName = "", userId = "", reportExecutionId = "" }) {
   const type = message?.type;
   const datetime = message?.datetime;
   const data = message?.data || {};
   const executionId = message?.execution_id || null;
+  const normalizedReportExecutionId = String(reportExecutionId || "").trim();
+  const effectiveReportExecutionId = normalizedReportExecutionId || executionId || "";
   const [isToolExpanded, setIsToolExpanded] = useState(false);
+  const [bugStatus, setBugStatus] = useState(null);
+  const bugReportingContext = useMemo(() => {
+    if (typeof window === "undefined") {
+      return { canReport: false, reviewerName: "" };
+    }
+
+    const dashboardEnv = String(window.localStorage.getItem("dashboardEnv") || "production")
+      .trim()
+      .toLowerCase();
+    const reviewerName = String(window.localStorage.getItem("reviewerName") || "")
+      .trim()
+      .toLowerCase();
+
+    return {
+      canReport: dashboardEnv === "production" && PRODUCTION_BUG_REPORTERS.has(reviewerName),
+      reviewerName,
+    };
+  }, []);
 
   if (!type || !datetime) {
     return null;
@@ -366,7 +390,9 @@ export default function MessageBubble({ message }) {
             messageKey={`human-${datetime}-${executionId || "na"}`}
           />
         </div>
-        <p className={styles.timestamp}>{timeLabel}</p>
+        <p className={styles.timestamp} suppressHydrationWarning>
+          {timeLabel}
+        </p>
       </div>
     );
   }
@@ -410,7 +436,9 @@ export default function MessageBubble({ message }) {
             </ul>
           )}
         </div>
-        <p className={styles.timestamp}>{timeLabel}</p>
+        <p className={styles.timestamp} suppressHydrationWarning>
+          {timeLabel}
+        </p>
       </div>
     );
   }
@@ -421,19 +449,93 @@ export default function MessageBubble({ message }) {
   const aiMediaUrls = extractMediaUrls(aiMessage);
   const aiStructuredMediaUrls = Array.isArray(data.media_urls) ? data.media_urls : [];
   const hasAiMedia = aiMediaUrls.length > 0 || aiStructuredMediaUrls.length > 0;
+  const reportBugBtnClassName = [
+    styles.reportBugBtn,
+    bugStatus === "loading" ? styles.reportBugBtnLoading : "",
+    bugStatus === "success" ? styles.reportBugBtnSuccess : "",
+    bugStatus === "error" ? styles.reportBugBtnError : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const bugIcon = bugStatus === "success" ? "✓" : bugStatus === "error" ? "✗" : "🐛";
+
+  async function handleReportBug() {
+    if (bugStatus === "loading" || !bugReportingContext.canReport) {
+      return;
+    }
+
+    setBugStatus("loading");
+
+    try {
+      const response = await fetch("/api/report-bug", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messageContent: aiMessage,
+          timestamp: datetime,
+          executionId: effectiveReportExecutionId,
+          clientName: String(clientName || "").trim(),
+          userId: String(userId || "").trim(),
+          clientUserId: String(userId || "").trim(),
+          reporterName: bugReportingContext.reviewerName,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || `Request failed (${response.status})`);
+      }
+
+      const notionDatabaseUrl = String(payload?.notionDatabaseUrl || "").trim();
+      if (notionDatabaseUrl) {
+        window.open(notionDatabaseUrl, "_blank", "noopener,noreferrer");
+      }
+
+      setBugStatus("success");
+    } catch (error) {
+      console.error("[dashboard] report bug failed:", error?.message || error);
+      setBugStatus("error");
+    }
+  }
 
   return (
     <div className={`${styles.row} ${styles.aiRow}`}>
       <p className={styles.roleLabel}>AI</p>
-      <div className={`${styles.bubble} ${styles.aiBubble}`}>
-        <CollapsibleMessageText content={visibleAiContent} hasMedia={hasAiMedia} />
-        <MediaAttachments
-          content={aiMessage}
-          extraUrls={aiStructuredMediaUrls}
-          messageKey={`ai-${datetime}-${executionId || "na"}`}
-        />
+      <div className={styles.bubbleRow}>
+        {bugReportingContext.canReport && (
+          <button
+            type="button"
+            className={reportBugBtnClassName}
+            onClick={handleReportBug}
+            disabled={bugStatus === "loading"}
+            aria-label="Report bug for this AI message"
+            title={
+              bugStatus === "loading"
+                ? "Creating report..."
+                : bugStatus === "success"
+                  ? "Bug reported"
+                  : bugStatus === "error"
+                    ? "Failed to report bug"
+                    : "Report bug"
+            }
+          >
+            {bugStatus === "loading" ? <span className={styles.reportBugSpinner} aria-hidden="true" /> : bugIcon}
+          </button>
+        )}
+        <div className={`${styles.bubble} ${styles.aiBubble}`}>
+          <CollapsibleMessageText content={visibleAiContent} hasMedia={hasAiMedia} />
+          <MediaAttachments
+            content={aiMessage}
+            extraUrls={aiStructuredMediaUrls}
+            messageKey={`ai-${datetime}-${executionId || "na"}`}
+          />
+        </div>
       </div>
-      <p className={styles.timestamp}>{timeLabel}</p>
+      <p className={styles.timestamp} suppressHydrationWarning>
+        {timeLabel}
+      </p>
     </div>
   );
 }

@@ -249,6 +249,17 @@ function formatReviewerName(name) {
   return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1).toLowerCase()}`;
 }
 
+function getBugReportClientName(user) {
+  const rawUserId = String(user?.user_id || "").trim();
+  const normalizedUserId = rawUserId.replace(/^whatsapp:/i, "").trim();
+  if (normalizedUserId) {
+    return normalizedUserId;
+  }
+
+  const username = String(user?.username || "").trim();
+  return username || "";
+}
+
 export default function ChatView({
   user,
   chat,
@@ -309,8 +320,12 @@ export default function ChatView({
     }
 
     setChatSearchTerm(initialSearchQuery);
-    pendingTargetDatetimeRef.current = focusedMessageDatetime || null;
   }, [initialSearchQuery, focusedMessageDatetime, user?.user_id]);
+
+  useEffect(() => {
+    const normalizedTarget = String(focusedMessageDatetime || "").trim();
+    pendingTargetDatetimeRef.current = normalizedTarget || null;
+  }, [focusedMessageDatetime, user?.user_id]);
 
   const dateRangeMessages = useMemo(() => {
     if (!selectedRange?.start || !selectedRange?.end) {
@@ -322,6 +337,27 @@ export default function ChatView({
       return day >= selectedRange.start && day <= selectedRange.end;
     });
   }, [messages, selectedRange?.start, selectedRange?.end]);
+
+  const aiReportExecutionIdByIndex = useMemo(() => {
+    const executionByIndex = new Map();
+    let lastHumanExecutionId = "";
+
+    dateRangeMessages.forEach((message, index) => {
+      const type = String(message?.type || "").trim().toLowerCase();
+      const messageExecutionId = String(message?.execution_id || "").trim();
+
+      if (type === "human" && messageExecutionId) {
+        lastHumanExecutionId = messageExecutionId;
+        return;
+      }
+
+      if (type === "ai") {
+        executionByIndex.set(index, messageExecutionId || lastHumanExecutionId || "");
+      }
+    });
+
+    return executionByIndex;
+  }, [dateRangeMessages]);
 
   const maxReadTimestamp = useMemo(() => {
     const timestamps = (Array.isArray(readReceipts) ? readReceipts : [])
@@ -535,7 +571,7 @@ export default function ChatView({
   }, [user?.user_id, dateRangeMessages, maxReadTimestamp]);
 
   useEffect(() => {
-    if (!pendingTargetDatetimeRef.current || matchingMessageIndexes.length === 0) {
+    if (!pendingTargetDatetimeRef.current || dateRangeMessages.length === 0) {
       return;
     }
 
@@ -544,18 +580,29 @@ export default function ChatView({
       (message) => message.datetime === targetDatetime
     );
 
-    if (targetMessageIndex >= 0) {
-      const matchPosition = matchingMessageIndexes.indexOf(targetMessageIndex);
-      if (matchPosition >= 0) {
-        pendingTargetDatetimeRef.current = null;
-        setActiveMatchPosition(matchPosition);
-        return;
-      }
+    if (targetMessageIndex < 0) {
+      pendingTargetDatetimeRef.current = null;
+      return;
     }
 
+    const hasQuery = chatSearchTerm.trim().length > 0;
+    if (!hasQuery) {
+      pendingTargetDatetimeRef.current = null;
+      const targetNode = messageNodeRefs.current[targetMessageIndex];
+      if (targetNode) {
+        scrollMessageNode(targetNode, "center", "smooth");
+      }
+      return;
+    }
+
+    const matchPosition = matchingMessageIndexes.indexOf(targetMessageIndex);
     pendingTargetDatetimeRef.current = null;
-    setActiveMatchPosition(0);
-  }, [matchingMessageIndexes, dateRangeMessages]);
+    if (matchPosition >= 0) {
+      setActiveMatchPosition(matchPosition);
+    } else if (matchingMessageIndexes.length > 0) {
+      setActiveMatchPosition(0);
+    }
+  }, [matchingMessageIndexes, dateRangeMessages, chatSearchTerm]);
 
   useEffect(() => {
     if (activeMessageIndex < 0) {
@@ -781,16 +828,19 @@ export default function ChatView({
           const query = chatSearchTerm.trim();
           const isMatch = !!query && matchingIndexSet.has(index);
           const isActive = index === activeMessageIndex;
+          const isDeepLinkedMessage =
+            !!focusedMessageDatetime && String(message?.datetime || "") === focusedMessageDatetime;
           const isReadMessage =
             maxReadTimestamp > 0 && toTimestamp(message.datetime) <= maxReadTimestamp;
           const reviewSeparator = reviewSeparatorsByMessageIndex.get(index);
+          const reportExecutionId = aiReportExecutionIdByIndex.get(index) || "";
           const messageKey = `${message.type}-${message.datetime}-${message.execution_id || "na"}-${index}`;
 
           return (
             <Fragment key={messageKey}>
               {showDaySeparator && (
                 <div className={styles.dateSeparator}>
-                  <span>{formatDayOption(day)}</span>
+                  <span suppressHydrationWarning>{formatDayOption(day)}</span>
                 </div>
               )}
               <div
@@ -802,15 +852,21 @@ export default function ChatView({
                   isReadMessage ? styles.messageRead : "",
                   isMatch ? styles.messageMatch : "",
                   isActive ? styles.messageActiveMatch : "",
+                  isDeepLinkedMessage ? styles.messageDeepLinkedTarget : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
               >
-                <MessageBubble message={message} />
+                <MessageBubble
+                  message={message}
+                  clientName={getBugReportClientName(user)}
+                  userId={user?.user_id || ""}
+                  reportExecutionId={reportExecutionId}
+                />
               </div>
               {reviewSeparator && (
                 <div className={styles.reviewSeparator}>
-                  <span>
+                  <span suppressHydrationWarning>
                     {`Reviewed up to here by ${Array.from(reviewSeparator.reviewerNames)
                       .sort()
                       .join(", ")} - ${formatReviewTimestamp(reviewSeparator.markedAt || reviewSeparator.reviewedAt)}`}

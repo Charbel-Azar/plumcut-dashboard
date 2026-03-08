@@ -374,7 +374,11 @@ export default function UserList({
               aria-expanded={calendarOpen}
             >
               <CalendarIcon />
-              {hasDateFilter && <span className={styles.calendarLabel}>{formatRangeLabel(dateRange)}</span>}
+              {hasDateFilter && (
+                <span className={styles.calendarLabel} suppressHydrationWarning>
+                  {formatRangeLabel(dateRange)}
+                </span>
+              )}
             </button>
 
             <CalendarPopup
@@ -425,7 +429,7 @@ export default function UserList({
 
         {dateRange?.start && dateRange?.end && (
           <div className={styles.dateChip}>
-            <span>{`${formatDayLabel(dateRange.start)} - ${formatDayLabel(dateRange.end)}`}</span>
+            <span suppressHydrationWarning>{`${formatDayLabel(dateRange.start)} - ${formatDayLabel(dateRange.end)}`}</span>
             <button
               type="button"
               onClick={() => setDateRange(null)}
@@ -470,7 +474,9 @@ export default function UserList({
               <div className={styles.itemBody}>
                 <div className={styles.topRow}>
                   <p className={styles.phone}>{getUserDisplayLabel(user)}</p>
-                  <p className={styles.date}>{formatDayLabel(latestMessage?.datetime)}</p>
+                  <p className={styles.date} suppressHydrationWarning>
+                    {formatDayLabel(latestMessage?.datetime)}
+                  </p>
                 </div>
                 <p className={styles.preview}>{getMessagePreview(latestMessage)}</p>
               </div>
