@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
 import Calendar from "@/components/Calendar/Calendar";
 import CalendarPopup from "@/components/Calendar/CalendarPopup";
@@ -277,6 +277,7 @@ export default function ChatView({
   const initialScrollDoneRef = useRef(false);
   const scrolledWithReceiptsRef = useRef(false);
   const pendingTargetDatetimeRef = useRef(null);
+  const deepLinkPulseRafRef = useRef(0);
   const messages = useMemo(
     () => (chat?.messages || []).filter((message) => hasValidDateTime(message)),
     [chat?.messages]
@@ -291,18 +292,87 @@ export default function ChatView({
   const [chatSearchTerm, setChatSearchTerm] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [activeMatchPosition, setActiveMatchPosition] = useState(-1);
+  const [deepLinkedPulseDatetime, setDeepLinkedPulseDatetime] = useState(null);
   const hasDateFilter = Boolean(selectedRange?.start && selectedRange?.end);
   const dayRangeLabel = availableDays.length === 0 ? "No dates" : formatRangeLabel(selectedRange);
+
+  const clearDeepLinkPulseRaf = useCallback(() => {
+    if (typeof window !== "undefined" && deepLinkPulseRafRef.current) {
+      window.cancelAnimationFrame(deepLinkPulseRafRef.current);
+    }
+    deepLinkPulseRafRef.current = 0;
+  }, []);
+
+  const triggerDeepLinkPulse = useCallback((targetDatetime) => {
+    if (!targetDatetime) {
+      return;
+    }
+
+    setDeepLinkedPulseDatetime(null);
+    if (typeof window === "undefined") {
+      setDeepLinkedPulseDatetime(targetDatetime);
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setDeepLinkedPulseDatetime(targetDatetime);
+      });
+    });
+  }, []);
+
+  const scheduleDeepLinkPulseAfterScroll = useCallback(
+    (targetDatetime) => {
+      const container = chatAreaRef.current;
+      if (!container || typeof window === "undefined") {
+        triggerDeepLinkPulse(targetDatetime);
+        return;
+      }
+
+      clearDeepLinkPulseRaf();
+
+      let previousTop = container.scrollTop;
+      let stableFrames = 0;
+      let frameCount = 0;
+      const MAX_FRAMES = 150;
+      const REQUIRED_STABLE_FRAMES = 8;
+
+      const waitForScrollSettle = () => {
+        frameCount += 1;
+        const currentTop = container.scrollTop;
+
+        if (Math.abs(currentTop - previousTop) <= 0.5) {
+          stableFrames += 1;
+        } else {
+          stableFrames = 0;
+        }
+        previousTop = currentTop;
+
+        if (stableFrames >= REQUIRED_STABLE_FRAMES || frameCount >= MAX_FRAMES) {
+          deepLinkPulseRafRef.current = 0;
+          triggerDeepLinkPulse(targetDatetime);
+          return;
+        }
+
+        deepLinkPulseRafRef.current = window.requestAnimationFrame(waitForScrollSettle);
+      };
+
+      deepLinkPulseRafRef.current = window.requestAnimationFrame(waitForScrollSettle);
+    },
+    [clearDeepLinkPulseRaf, triggerDeepLinkPulse]
+  );
 
   useEffect(() => {
     setSelectedRange(null);
     setCalendarOpen(false);
     setChatSearchTerm("");
     setActiveMatchPosition(-1);
+    setDeepLinkedPulseDatetime(null);
     pendingTargetDatetimeRef.current = null;
     initialScrollDoneRef.current = false;
     scrolledWithReceiptsRef.current = false;
-  }, [user?.user_id]);
+    clearDeepLinkPulseRaf();
+  }, [clearDeepLinkPulseRaf, user?.user_id]);
 
   useEffect(() => {
     const day = String(focusedDay || "").trim();
@@ -324,8 +394,10 @@ export default function ChatView({
 
   useEffect(() => {
     const normalizedTarget = String(focusedMessageDatetime || "").trim();
+    setDeepLinkedPulseDatetime(null);
+    clearDeepLinkPulseRaf();
     pendingTargetDatetimeRef.current = normalizedTarget || null;
-  }, [focusedMessageDatetime, user?.user_id]);
+  }, [clearDeepLinkPulseRaf, focusedMessageDatetime, user?.user_id]);
 
   const dateRangeMessages = useMemo(() => {
     if (!selectedRange?.start || !selectedRange?.end) {
@@ -585,24 +657,37 @@ export default function ChatView({
       return;
     }
 
-    const hasQuery = chatSearchTerm.trim().length > 0;
-    if (!hasQuery) {
-      pendingTargetDatetimeRef.current = null;
-      const targetNode = messageNodeRefs.current[targetMessageIndex];
-      if (targetNode) {
-        scrollMessageNode(targetNode, "center", "smooth");
-      }
-      return;
+    pendingTargetDatetimeRef.current = null;
+
+    const targetNode = messageNodeRefs.current[targetMessageIndex];
+    if (targetNode) {
+      scrollMessageNode(targetNode, "center", "smooth");
+      scheduleDeepLinkPulseAfterScroll(targetDatetime);
+    } else {
+      triggerDeepLinkPulse(targetDatetime);
     }
 
-    const matchPosition = matchingMessageIndexes.indexOf(targetMessageIndex);
-    pendingTargetDatetimeRef.current = null;
-    if (matchPosition >= 0) {
-      setActiveMatchPosition(matchPosition);
-    } else if (matchingMessageIndexes.length > 0) {
-      setActiveMatchPosition(0);
+    if (chatSearchTerm.trim().length > 0) {
+      const matchPosition = matchingMessageIndexes.indexOf(targetMessageIndex);
+      if (matchPosition >= 0) {
+        setActiveMatchPosition(matchPosition);
+      } else if (matchingMessageIndexes.length > 0) {
+        setActiveMatchPosition(0);
+      }
     }
-  }, [matchingMessageIndexes, dateRangeMessages, chatSearchTerm]);
+  }, [
+    matchingMessageIndexes,
+    dateRangeMessages,
+    chatSearchTerm,
+    scheduleDeepLinkPulseAfterScroll,
+    triggerDeepLinkPulse,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearDeepLinkPulseRaf();
+    };
+  }, [clearDeepLinkPulseRaf]);
 
   useEffect(() => {
     if (activeMessageIndex < 0) {
@@ -830,6 +915,8 @@ export default function ChatView({
           const isActive = index === activeMessageIndex;
           const isDeepLinkedMessage =
             !!focusedMessageDatetime && String(message?.datetime || "") === focusedMessageDatetime;
+          const isDeepLinkedPulse =
+            !!deepLinkedPulseDatetime && String(message?.datetime || "") === deepLinkedPulseDatetime;
           const isReadMessage =
             maxReadTimestamp > 0 && toTimestamp(message.datetime) <= maxReadTimestamp;
           const reviewSeparator = reviewSeparatorsByMessageIndex.get(index);
@@ -853,6 +940,7 @@ export default function ChatView({
                   isMatch ? styles.messageMatch : "",
                   isActive ? styles.messageActiveMatch : "",
                   isDeepLinkedMessage ? styles.messageDeepLinkedTarget : "",
+                  isDeepLinkedPulse ? styles.messageDeepLinkedPulse : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}

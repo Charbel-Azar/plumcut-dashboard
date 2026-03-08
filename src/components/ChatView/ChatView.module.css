@@ -336,9 +336,17 @@
 }
 
 .messageDeepLinkedTarget {
+  background: transparent;
+}
+
+.messageDeepLinkedTarget > * {
+  border-radius: 12px;
   background: rgba(238, 116, 24, 0.18);
   box-shadow: 0 0 0 2px rgba(238, 116, 24, 0.5);
-  animation: deepLinkedPulse 2s ease-out 0.5s 1 forwards;
+}
+
+.messageDeepLinkedPulse > * {
+  animation: deepLinkedPulse 2s ease-out 1 forwards;
 }
 
 @keyframes activeMatchGlowFade {
