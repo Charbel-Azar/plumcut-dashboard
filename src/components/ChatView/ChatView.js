@@ -211,6 +211,39 @@ function toTimestamp(value) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
+function areDateTimeValuesEqual(leftValue, rightValue) {
+  const left = String(leftValue || "").trim();
+  const right = String(rightValue || "").trim();
+  if (!left || !right) {
+    return false;
+  }
+
+  if (left === right) {
+    return true;
+  }
+
+  const leftTimestamp = toTimestamp(left);
+  const rightTimestamp = toTimestamp(right);
+  if (!leftTimestamp || !rightTimestamp) {
+    return false;
+  }
+
+  if (leftTimestamp === rightTimestamp) {
+    return true;
+  }
+
+  // Handle precision mismatches such as millisecond truncation in URL parameters.
+  return Math.abs(leftTimestamp - rightTimestamp) <= 1000;
+}
+
+function findMessageIndexByDatetime(messages, targetDatetime) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return -1;
+  }
+
+  return messages.findIndex((message) => areDateTimeValuesEqual(message?.datetime, targetDatetime));
+}
+
 function getEffectiveReadTimestamp(receipt) {
   const readTimestamp = toTimestamp(receipt?.lastReadDatetime);
   if (!readTimestamp) {
@@ -397,6 +430,10 @@ export default function ChatView({
     setDeepLinkedPulseDatetime(null);
     clearDeepLinkPulseRaf();
     pendingTargetDatetimeRef.current = normalizedTarget || null;
+    if (normalizedTarget) {
+      initialScrollDoneRef.current = true;
+      scrolledWithReceiptsRef.current = true;
+    }
   }, [clearDeepLinkPulseRaf, focusedMessageDatetime, user?.user_id]);
 
   const dateRangeMessages = useMemo(() => {
@@ -648,11 +685,21 @@ export default function ChatView({
     }
 
     const targetDatetime = pendingTargetDatetimeRef.current;
-    const targetMessageIndex = dateRangeMessages.findIndex(
-      (message) => message.datetime === targetDatetime
-    );
+    const targetMessageIndex = findMessageIndexByDatetime(dateRangeMessages, targetDatetime);
 
     if (targetMessageIndex < 0) {
+      const targetMessageIndexInFullChat = findMessageIndexByDatetime(messages, targetDatetime);
+      if (targetMessageIndexInFullChat >= 0) {
+        const targetDay = String(messages[targetMessageIndexInFullChat]?.datetime || "").slice(0, 10);
+        if (
+          /^\d{4}-\d{2}-\d{2}$/.test(targetDay) &&
+          (selectedRange?.start !== targetDay || selectedRange?.end !== targetDay)
+        ) {
+          setSelectedRange({ start: targetDay, end: targetDay });
+          return;
+        }
+      }
+
       pendingTargetDatetimeRef.current = null;
       return;
     }
@@ -678,6 +725,9 @@ export default function ChatView({
   }, [
     matchingMessageIndexes,
     dateRangeMessages,
+    messages,
+    selectedRange?.start,
+    selectedRange?.end,
     chatSearchTerm,
     scheduleDeepLinkPulseAfterScroll,
     triggerDeepLinkPulse,
@@ -914,9 +964,9 @@ export default function ChatView({
           const isMatch = !!query && matchingIndexSet.has(index);
           const isActive = index === activeMessageIndex;
           const isDeepLinkedMessage =
-            !!focusedMessageDatetime && String(message?.datetime || "") === focusedMessageDatetime;
+            areDateTimeValuesEqual(message?.datetime, focusedMessageDatetime);
           const isDeepLinkedPulse =
-            !!deepLinkedPulseDatetime && String(message?.datetime || "") === deepLinkedPulseDatetime;
+            areDateTimeValuesEqual(message?.datetime, deepLinkedPulseDatetime);
           const isReadMessage =
             maxReadTimestamp > 0 && toTimestamp(message.datetime) <= maxReadTimestamp;
           const reviewSeparator = reviewSeparatorsByMessageIndex.get(index);
