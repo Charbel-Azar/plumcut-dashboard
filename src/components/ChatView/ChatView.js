@@ -211,6 +211,16 @@ function toTimestamp(value) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
+function toSecondPrecisionIsoPrefix(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+  return match ? match[1] : "";
+}
+
 function areDateTimeValuesEqual(leftValue, rightValue) {
   const left = String(leftValue || "").trim();
   const right = String(rightValue || "").trim();
@@ -219,6 +229,14 @@ function areDateTimeValuesEqual(leftValue, rightValue) {
   }
 
   if (left === right) {
+    return true;
+  }
+
+  // Allow equality between timezone-annotated and timezone-naive strings
+  // when they represent the same YYYY-MM-DDTHH:mm:ss wall-clock second.
+  const leftSecondPrecision = toSecondPrecisionIsoPrefix(left);
+  const rightSecondPrecision = toSecondPrecisionIsoPrefix(right);
+  if (leftSecondPrecision && rightSecondPrecision && leftSecondPrecision === rightSecondPrecision) {
     return true;
   }
 
@@ -297,6 +315,7 @@ export default function ChatView({
   user,
   chat,
   loadingChatId,
+  dashboardEnv = "production",
   onBack,
   onInfoOpen,
   readReceipts = [],
@@ -608,10 +627,11 @@ export default function ChatView({
         : nodeTopWithinContainer - container.clientHeight / 2 + nodeRect.height / 2;
 
     const nextTop = Math.max(0, targetTop);
+    const resolvedBehavior = behavior === "instant" ? "auto" : behavior;
     try {
       container.scrollTo({
         top: nextTop,
-        behavior,
+        behavior: resolvedBehavior,
       });
     } catch {
       container.scrollTop = nextTop;
@@ -633,6 +653,9 @@ export default function ChatView({
   }, [chatSearchTerm, matchingMessageIndexes.length]);
 
   useEffect(() => {
+    if (pendingTargetDatetimeRef.current) {
+      return;
+    }
     if (chatAreaRef.current) {
       chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
     }
@@ -643,6 +666,9 @@ export default function ChatView({
       return;
     }
     if (!initialScrollDoneRef.current) {
+      return;
+    }
+    if (pendingTargetDatetimeRef.current) {
       return;
     }
     chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
@@ -685,6 +711,15 @@ export default function ChatView({
     }
 
     const targetDatetime = pendingTargetDatetimeRef.current;
+    const targetDay = String(targetDatetime).slice(0, 10);
+    if (
+      /^\d{4}-\d{2}-\d{2}$/.test(targetDay) &&
+      !(selectedRange?.start === targetDay && selectedRange?.end === targetDay)
+    ) {
+      setSelectedRange({ start: targetDay, end: targetDay });
+      return;
+    }
+
     const targetMessageIndex = findMessageIndexByDatetime(dateRangeMessages, targetDatetime);
 
     if (targetMessageIndex < 0) {
@@ -1000,6 +1035,7 @@ export default function ChatView({
                   clientName={getBugReportClientName(user)}
                   userId={user?.user_id || ""}
                   reportExecutionId={reportExecutionId}
+                  dashboardEnv={dashboardEnv}
                 />
               </div>
               {reviewSeparator && (

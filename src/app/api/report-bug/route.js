@@ -4,6 +4,8 @@ const NOTION_API_BASE_URL = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
 const PRODUCTION_REPORTERS = new Set(["charbel", "nour", "michael"]);
 const N8N_PRODUCTION_EXECUTION_BASE_URL = "https://n8n.plumcut.com/workflow/OCYvieDL6GMoxbYuM06ml/executions";
+const DASHBOARD_CLIENT_TIA = "TiaDib";
+const DASHBOARD_CLIENT_PLUM = "plum";
 
 function toSafeString(value) {
   if (value === null || value === undefined) {
@@ -37,6 +39,25 @@ function normalizeTimestamp(value) {
   return parsed.toISOString();
 }
 
+function extractIsoDay(value) {
+  const raw = toSafeString(value).trim();
+  if (!raw) {
+    return "";
+  }
+
+  const directMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (directMatch?.[1]) {
+    return directMatch[1];
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
 function splitRichText(value, maxChunkLength = 1900, maxChunks = 30) {
   const text = toSafeString(value);
   if (!text.trim()) {
@@ -59,7 +80,7 @@ function splitRichText(value, maxChunkLength = 1900, maxChunks = 30) {
 function buildExecutionIdRichText(executionId) {
   const normalizedExecutionId = toSafeString(executionId).trim();
   if (!normalizedExecutionId) {
-    return splitRichText("-");
+    return [];
   }
 
   const executionUrl = `${N8N_PRODUCTION_EXECUTION_BASE_URL}/${encodeURIComponent(normalizedExecutionId)}`;
@@ -76,20 +97,6 @@ function buildExecutionIdRichText(executionId) {
   ];
 }
 
-function formatTitle(clientName, timestamp) {
-  const client = toSafeString(clientName).trim() || "Unknown client";
-  const label = new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(timestamp));
-
-  return `${client} - ${label}`.slice(0, 180);
-}
-
 function getDatabaseUrl(databaseId) {
   const normalized = toSafeString(databaseId).replace(/-/g, "").trim();
   return `https://www.notion.so/${normalized}`;
@@ -102,7 +109,128 @@ function normalizePropertyName(name) {
     .replace(/[\s_-]+/g, "");
 }
 
-async function resolveDashboardUrlProperty(notionToken, notionDatabaseId) {
+function normalizeHostCandidate(value) {
+  const raw = toSafeString(value).trim();
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const withProtocol = raw.includes("://") ? raw : `https://${raw}`;
+    return new URL(withProtocol).hostname.trim().toLowerCase();
+  } catch {
+    return raw.toLowerCase();
+  }
+}
+
+function resolveClientLabel({ explicitClient, requestHost, dashboardBaseUrl }) {
+  const explicit = toSafeString(explicitClient).trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const candidates = [requestHost, dashboardBaseUrl]
+    .map((value) => normalizeHostCandidate(value))
+    .filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (candidate.includes("tiadib")) {
+      return DASHBOARD_CLIENT_TIA;
+    }
+    if (candidate.includes("plum")) {
+      return DASHBOARD_CLIENT_PLUM;
+    }
+  }
+
+  return "";
+}
+
+function findPropertyName(entries, normalizedCandidates, allowedTypes = []) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return "";
+  }
+
+  const normalizedSet = new Set(
+    (Array.isArray(normalizedCandidates) ? normalizedCandidates : [])
+      .map((candidate) => normalizePropertyName(candidate))
+      .filter(Boolean)
+  );
+  if (normalizedSet.size === 0) {
+    return "";
+  }
+
+  const allowedTypeSet = new Set(
+    (Array.isArray(allowedTypes) ? allowedTypes : [])
+      .map((type) => toSafeString(type).trim())
+      .filter(Boolean)
+  );
+
+  const match = entries.find(([name, property]) => {
+    const normalizedName = normalizePropertyName(name);
+    const propertyType = toSafeString(property?.type).trim();
+    if (!normalizedSet.has(normalizedName)) {
+      return false;
+    }
+    if (allowedTypeSet.size > 0 && !allowedTypeSet.has(propertyType)) {
+      return false;
+    }
+    return true;
+  });
+
+  return match ? match[0] : "";
+}
+
+function findPropertyNameIncluding(entries, normalizedFragment, allowedTypes = []) {
+  const fragment = normalizePropertyName(normalizedFragment);
+  if (!fragment || !Array.isArray(entries) || entries.length === 0) {
+    return "";
+  }
+
+  const allowedTypeSet = new Set(
+    (Array.isArray(allowedTypes) ? allowedTypes : [])
+      .map((type) => toSafeString(type).trim())
+      .filter(Boolean)
+  );
+
+  const match = entries.find(([name, property]) => {
+    const normalizedName = normalizePropertyName(name);
+    const propertyType = toSafeString(property?.type).trim();
+    if (!normalizedName.includes(fragment)) {
+      return false;
+    }
+    if (allowedTypeSet.size > 0 && !allowedTypeSet.has(propertyType)) {
+      return false;
+    }
+    return true;
+  });
+
+  return match ? match[0] : "";
+}
+
+function getPropertyType(propertyMap, propertyName) {
+  if (!propertyName || !propertyMap || typeof propertyMap !== "object") {
+    return "";
+  }
+  return toSafeString(propertyMap[propertyName]?.type).trim();
+}
+
+function setTextLikeProperty(properties, propertyName, propertyType, textValue) {
+  if (!propertyName || !propertyType || !properties || typeof properties !== "object") {
+    return;
+  }
+
+  const chunks = splitRichText(textValue);
+  if (propertyType === "title") {
+    properties[propertyName] = { title: chunks };
+    return;
+  }
+
+  if (propertyType === "rich_text") {
+    properties[propertyName] = { rich_text: chunks };
+  }
+}
+
+async function resolveNotionSchema(notionToken, notionDatabaseId) {
   const response = await fetch(`${NOTION_API_BASE_URL}/databases/${notionDatabaseId}`, {
     method: "GET",
     headers: {
@@ -112,30 +240,53 @@ async function resolveDashboardUrlProperty(notionToken, notionDatabaseId) {
   });
 
   if (!response.ok) {
-    return { name: null, urlPropertyNames: [] };
+    if (process.env.NODE_ENV !== "production") {
+      const payload = await response.json().catch(() => ({}));
+      console.log("[dashboard] notion database schema read failed", {
+        status: response.status,
+        message: toSafeString(payload?.message).trim() || null,
+      });
+    }
+    return {
+      properties: {},
+      urlPropertyNames: [],
+      titlePropertyName: "",
+      clientPropertyName: "",
+      messagePropertyName: "",
+      timestampPropertyName: "",
+      executionIdPropertyName: "",
+      statusPropertyName: "",
+      dashboardUrlPropertyName: "",
+    };
   }
 
   const payload = await response.json().catch(() => ({}));
   const properties = payload?.properties && typeof payload.properties === "object" ? payload.properties : {};
-  const entries = Object.entries(properties).filter(([, property]) => property?.type === "url");
-  const urlPropertyNames = entries.map(([name]) => name);
+  const entries = Object.entries(properties);
+  const urlEntries = entries.filter(([, property]) => property?.type === "url");
+  const urlPropertyNames = urlEntries.map(([name]) => name);
+  const titlePropertyName =
+    entries.find(([, property]) => toSafeString(property?.type).trim() === "title")?.[0] || "";
 
-  if (entries.length === 0) {
-    return { name: null, urlPropertyNames };
-  }
+  const dashboardUrlPropertyName =
+    findPropertyName(urlEntries, ["Dashboard Link", "Dashboard"]) ||
+    findPropertyNameIncluding(urlEntries, "dashboard");
 
-  const exactCandidates = new Set(["dashboard", "dashboardlink"]);
-  const exactMatch = entries.find(([name]) => exactCandidates.has(normalizePropertyName(name)));
-  if (exactMatch) {
-    return { name: exactMatch[0], urlPropertyNames };
-  }
+  const executionIdPropertyName =
+    findPropertyName(entries, ["Execution ID"], ["rich_text", "number", "title"]) ||
+    findPropertyNameIncluding(entries, "execution", ["rich_text", "number", "title"]);
 
-  const containsMatch = entries.find(([name]) => normalizePropertyName(name).includes("dashboard"));
-  if (containsMatch) {
-    return { name: containsMatch[0], urlPropertyNames };
-  }
-
-  return { name: null, urlPropertyNames };
+  return {
+    properties,
+    urlPropertyNames,
+    titlePropertyName,
+    clientPropertyName: findPropertyName(entries, ["Client"], ["select", "multi_select", "rich_text", "title"]),
+    messagePropertyName: findPropertyName(entries, ["Message"], ["rich_text", "title"]),
+    timestampPropertyName: findPropertyName(entries, ["Timestamp"], ["date"]),
+    executionIdPropertyName,
+    statusPropertyName: findPropertyName(entries, ["Status"], ["status", "select"]),
+    dashboardUrlPropertyName,
+  };
 }
 
 export async function POST(request) {
@@ -159,19 +310,26 @@ export async function POST(request) {
       .trim()
       .toLowerCase();
     const messageContent = toSafeString(body?.messageContent).trim();
-    const timestamp = normalizeTimestamp(body?.timestamp);
-    const date = String(timestamp || "").slice(0, 10);
+    const rawMessageDatetime = toSafeString(body?.timestamp).trim();
+    const timestamp = normalizeTimestamp(rawMessageDatetime);
+    const deepLinkMessageDatetime = rawMessageDatetime || timestamp;
+    const date = extractIsoDay(deepLinkMessageDatetime) || String(timestamp || "").slice(0, 10);
     const executionId = toSafeString(body?.executionId).trim();
     const userId = toSafeString(
       body?.userId || body?.clientUserId || body?.clientIdentifier || body?.client
     ).trim();
-    const clientName = toSafeString(
-      body?.clientName || body?.clientIdentifier || body?.client || userId
-    ).trim();
     const dashboardUrl = toSafeString(process.env.DASHBOARD_BASE_URL).trim().replace(/\/+$/, "");
+    const requestHost = toSafeString(
+      body?.dashboardHost || request.headers.get("x-forwarded-host") || request.headers.get("host")
+    ).trim();
+    const clientLabel = resolveClientLabel({
+      explicitClient: body?.dashboardClient,
+      requestHost,
+      dashboardBaseUrl: dashboardUrl,
+    });
     const deepLink =
       dashboardUrl && userId && /^\d{4}-\d{2}-\d{2}$/.test(date)
-        ? `${dashboardUrl}/chats?userId=${encodeURIComponent(userId)}&dateFrom=${date}&dateTo=${date}&messageDatetime=${encodeURIComponent(timestamp)}`
+        ? `${dashboardUrl}/chats?userId=${encodeURIComponent(userId)}&dateFrom=${date}&dateTo=${date}&messageDatetime=${encodeURIComponent(deepLinkMessageDatetime)}`
         : "";
 
     if (isRuntimeProduction && !PRODUCTION_REPORTERS.has(reporterName)) {
@@ -182,10 +340,25 @@ export async function POST(request) {
       return NextResponse.json({ error: "messageContent is required." }, { status: 400 });
     }
 
-    const { name: schemaDashboardPropertyName, urlPropertyNames } = await resolveDashboardUrlProperty(
-      notionToken,
-      notionDatabaseId
-    );
+    const notionSchema = await resolveNotionSchema(notionToken, notionDatabaseId);
+    const {
+      properties: schemaProperties,
+      urlPropertyNames,
+      titlePropertyName,
+      clientPropertyName: schemaClientPropertyName,
+      messagePropertyName: schemaMessagePropertyName,
+      timestampPropertyName: schemaTimestampPropertyName,
+      executionIdPropertyName: schemaExecutionIdPropertyName,
+      statusPropertyName: schemaStatusPropertyName,
+      dashboardUrlPropertyName: schemaDashboardPropertyName,
+    } = notionSchema;
+
+    const messagePropertyName = schemaMessagePropertyName || "Message";
+    const timestampPropertyName = schemaTimestampPropertyName || "Timestamp";
+    const executionIdPropertyName = schemaExecutionIdPropertyName || "Execution ID";
+    const clientPropertyName = schemaClientPropertyName || "Client";
+    const statusPropertyName = schemaStatusPropertyName || "Status";
+
     const dashboardPropertyCandidates = Array.from(
       new Set(
         [
@@ -201,27 +374,75 @@ export async function POST(request) {
           .filter(Boolean)
       )
     );
-    const notionBaseProperties = {
-      Name: {
-        title: splitRichText(formatTitle(clientName, timestamp), 200, 1),
-      },
-      Message: {
-        rich_text: splitRichText(messageContent),
-      },
-      Timestamp: {
+    const notionBaseProperties = {};
+
+    // "Issue Reported" should stay empty; if that's the title column, create with an empty title.
+    if (titlePropertyName && getPropertyType(schemaProperties, titlePropertyName) === "title") {
+      notionBaseProperties[titlePropertyName] = { title: [] };
+    }
+
+    const messagePropertyType =
+      getPropertyType(schemaProperties, messagePropertyName) ||
+      (messagePropertyName === "Message" ? "rich_text" : "");
+    if (messagePropertyType === "title" || messagePropertyType === "rich_text") {
+      setTextLikeProperty(notionBaseProperties, messagePropertyName, messagePropertyType, messageContent);
+    }
+
+    const timestampPropertyType =
+      getPropertyType(schemaProperties, timestampPropertyName) ||
+      (timestampPropertyName === "Timestamp" ? "date" : "");
+    if (timestampPropertyType === "date") {
+      notionBaseProperties[timestampPropertyName] = {
         date: {
           start: timestamp,
         },
-      },
-      "Execution ID": {
-        rich_text: buildExecutionIdRichText(executionId),
-      },
-      Status: {
+      };
+    }
+
+    const executionPropertyType =
+      getPropertyType(schemaProperties, executionIdPropertyName) ||
+      (executionIdPropertyName === "Execution ID" ? "rich_text" : "");
+    if (executionPropertyType === "number") {
+      const executionNumber = Number(executionId);
+      if (Number.isFinite(executionNumber)) {
+        notionBaseProperties[executionIdPropertyName] = { number: executionNumber };
+      }
+    } else if (executionPropertyType === "title" || executionPropertyType === "rich_text") {
+      const executionChunks = buildExecutionIdRichText(executionId);
+      notionBaseProperties[executionIdPropertyName] =
+        executionPropertyType === "title"
+          ? { title: executionChunks }
+          : { rich_text: executionChunks };
+    }
+
+    const clientPropertyType =
+      getPropertyType(schemaProperties, clientPropertyName) || (clientPropertyName === "Client" ? "select" : "");
+    if (clientLabel) {
+      if (clientPropertyType === "select") {
+        notionBaseProperties[clientPropertyName] = { select: { name: clientLabel } };
+      } else if (clientPropertyType === "multi_select") {
+        notionBaseProperties[clientPropertyName] = { multi_select: [{ name: clientLabel }] };
+      } else if (clientPropertyType === "title" || clientPropertyType === "rich_text") {
+        setTextLikeProperty(notionBaseProperties, clientPropertyName, clientPropertyType, clientLabel);
+      }
+    }
+
+    const statusPropertyType =
+      getPropertyType(schemaProperties, statusPropertyName) || (statusPropertyName === "Status" ? "select" : "");
+    if (statusPropertyType === "status") {
+      notionBaseProperties[statusPropertyName] = {
+        status: {
+          name: "Open",
+        },
+      };
+    } else if (statusPropertyType === "select") {
+      notionBaseProperties[statusPropertyName] = {
         select: {
           name: "Open",
         },
-      },
-    };
+      };
+    }
+
     const createNotionPage = async (properties) => {
       return fetch(`${NOTION_API_BASE_URL}/pages`, {
         method: "POST",
@@ -237,7 +458,28 @@ export async function POST(request) {
       });
     };
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[dashboard] report-bug deep-link", {
+        titlePropertyName,
+        clientPropertyName,
+        messagePropertyName,
+        timestampPropertyName,
+        executionIdPropertyName,
+        statusPropertyName,
+        schemaDashboardPropertyName,
+        urlPropertyNames,
+        configuredDashboardProperty,
+        dashboardPropertyCandidates,
+        clientLabel,
+        requestHost,
+        hasDeepLink: Boolean(deepLink),
+        deepLink,
+        userId,
+      });
+    }
+
     let notionResponse = null;
+    let resolvedDashboardPropertyName = "";
 
     if (!deepLink) {
       notionResponse = await createNotionPage(notionBaseProperties);
@@ -253,6 +495,7 @@ export async function POST(request) {
         const response = await createNotionPage(propertiesWithLink);
         if (response.ok) {
           notionResponse = response;
+          resolvedDashboardPropertyName = propertyName;
           break;
         }
 
@@ -275,6 +518,10 @@ export async function POST(request) {
         },
         { status: 500 }
       );
+    }
+
+    if (process.env.NODE_ENV !== "production" && deepLink) {
+      console.log("[dashboard] report-bug dashboard column resolved", resolvedDashboardPropertyName || "(none)");
     }
 
     return NextResponse.json({

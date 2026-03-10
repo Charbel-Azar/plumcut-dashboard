@@ -479,6 +479,12 @@ export default function MessageBubble({ message, clientName = "", userId = "", r
           clientName: String(clientName || "").trim(),
           userId: String(userId || "").trim(),
           clientUserId: String(userId || "").trim(),
+          dashboardHost: window.location.hostname,
+          dashboardClient: window.location.hostname.toLowerCase().includes("tiadib")
+            ? "TiaDib"
+            : window.location.hostname.toLowerCase().includes("plum")
+              ? "plum"
+              : "",
           reporterName: bugReportingContext.reviewerName,
         }),
       });

@@ -464,6 +464,10 @@ export default function ChatsClient({ users: initialUsers, initialSelectedUserId
   useEffect(() => {
     const reviewerName = localStorage.getItem("reviewerName");
     if (!reviewerName) {
+      const search = window.location.search;
+      if (search) {
+        sessionStorage.setItem("postLoginRedirect", `/chats${search}`);
+      }
       setCurrentReviewer(null);
       router.replace("/");
       return;

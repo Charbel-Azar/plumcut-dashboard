@@ -185,8 +185,13 @@ export default function Home() {
         localStorage.setItem("reviewerDisplayName", String(payload.name));
       }
       localStorage.setItem("dashboardEnv", String(payload?.environment || "production"));
-
-      router.push("/chats");
+      const savedRedirect = sessionStorage.getItem("postLoginRedirect");
+      if (savedRedirect) {
+        sessionStorage.removeItem("postLoginRedirect");
+        router.push(savedRedirect);
+      } else {
+        router.push("/chats");
+      }
     } catch (submitError) {
       console.error("[dashboard] login failed:", submitError?.message || submitError);
       setError("Invalid credentials");
